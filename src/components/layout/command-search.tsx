@@ -95,20 +95,17 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="p-0 gap-0 max-w-xl overflow-hidden rounded-xl border border-border shadow-2xl">
+      <DialogContent className="p-0 gap-0  max-w-xl overflow-hidden rounded-xl border border-border shadow-2xl">
         <DialogTitle className="sr-only">Global Knowledge Search</DialogTitle>
-        <div className="flex items-center px-4 border-b border-border">
+        <div className="flex items-center m-3 px-4 border-b border-border">
           <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search documents, entities, decisions, or ask Cerevia..."
-            className="border-0 shadow-none focus-visible:ring-0 text-sm h-12 px-0 bg-transparent"
+            className="border-0 shadow-none focus-visible:ring-0 m-1 text-sm h-10 px-2 bg-transparent"
             autoFocus
           />
-          <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground bg-muted border rounded">
-            ESC
-          </kbd>
         </div>
 
         <div className="max-h-[360px] overflow-y-auto p-2">
