@@ -71,7 +71,7 @@ export const NAVIGATION_ITEMS: NavItem[] = [
     title: "Design System",
     href: "/design-system",
     icon: "Palette",
-    badge: "Showcase",
+    badge: "",
     badgeVariant: "success",
     section: "system",
   },

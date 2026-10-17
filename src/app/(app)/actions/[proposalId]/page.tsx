@@ -1,5 +1,7 @@
 import { ActionDetailView } from "@/features/actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function ActionDetailPage({
   params,
 }: {

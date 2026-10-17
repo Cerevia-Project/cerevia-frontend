@@ -1,5 +1,7 @@
 import { AssistantView } from "@/features/assistant";
 
+export const dynamic = "force-dynamic";
+
 export default async function ConversationPage({
   params,
 }: {

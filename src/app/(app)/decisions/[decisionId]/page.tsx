@@ -1,5 +1,7 @@
 import { DecisionDetailView } from "@/features/decisions";
 
+export const dynamic = "force-dynamic";
+
 export default async function DecisionDetailPage({
   params,
 }: {

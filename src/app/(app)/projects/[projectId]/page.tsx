@@ -1,5 +1,7 @@
 import { ProjectDetailView } from "@/features/projects";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProjectDetailPage({
   params,
 }: {

@@ -76,8 +76,8 @@ export function Sidebar({
         const isActive = item.exact
           ? pathname === item.href
           : pathname === item.href ||
-            (item.href === "/overview" && pathname === "/") ||
-            (item.href !== "/" && pathname.startsWith(item.href));
+          (item.href === "/overview" && pathname === "/") ||
+          (item.href !== "/" && pathname.startsWith(item.href));
 
         const linkContent = (
           <Link
@@ -197,7 +197,7 @@ export function Sidebar({
         {renderNavGroup("Design Foundation", systemItems)}
       </div>
 
-      {/* Bottom Graph Connection Pill */}
+      {/* Bottom Graph Connection Pill 
       {!collapsed && (
         <div className="p-3 border-t border-border/60 bg-muted/20">
           <div className="p-2 rounded-md bg-muted/50 border border-border/60 space-y-1">
@@ -213,7 +213,7 @@ export function Sidebar({
             </p>
           </div>
         </div>
-      )}
+      )}*/}
     </aside>
   );
 }

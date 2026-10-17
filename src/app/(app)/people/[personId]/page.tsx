@@ -1,5 +1,7 @@
 import { PersonDetailView } from "@/features/people";
 
+export const dynamic = "force-dynamic";
+
 export default async function PersonDetailPage({
   params,
 }: {
