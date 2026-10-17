@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { useRouter } from "next/navigation";
 import { GraphNode, GraphEdge } from "@/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,6 @@ import {
   ExternalLink,
   GitCommit,
   Network,
-  Share2,
-  Calendar,
 } from "lucide-react";
 
 export interface NodeInspectorProps {
@@ -31,6 +29,7 @@ export function NodeInspector({
   onNavigateToNode,
   className,
 }: NodeInspectorProps) {
+  const router = useRouter();
   if (!node) return null;
 
   // Find connected edges and neighbors
@@ -165,7 +164,7 @@ export function NodeInspector({
           className="h-7 text-xs flex-1 gap-1.5"
           onClick={() => {
             const url = `/${node.type === "document" ? "sources" : `${node.type}s`}/${node.id}`;
-            window.location.href = url;
+            router.push(url);
           }}
         >
           <ExternalLink className="h-3 w-3" />

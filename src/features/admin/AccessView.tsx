@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Database, ShieldCheck, Key } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Database } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export function AccessView() {

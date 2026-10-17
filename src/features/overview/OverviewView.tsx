@@ -8,7 +8,6 @@ import {
   FileCheck2,
   Database,
   ArrowRight,
-  TrendingUp,
   ShieldCheck,
   Activity,
   Layers,

@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CheckCircle, XCircle, ArrowRight, ShieldAlert, GitPullRequest } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { CheckCircle, XCircle } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EvidenceBadge } from "@/components/evidence/EvidenceBadge";
