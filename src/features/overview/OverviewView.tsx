@@ -9,7 +9,6 @@ import {
   Database,
   ArrowRight,
   TrendingUp,
-  Clock,
   ShieldCheck,
   Activity,
   Layers,
@@ -73,7 +72,7 @@ export function OverviewView() {
           <div className="flex items-baseline justify-between">
             <span className="text-xl font-bold font-mono tracking-tight text-foreground">14,290</span>
             <span className="text-[11px] font-medium text-success flex items-center gap-0.5">
-              <TrendingUp className="h-3 w-3" /> +8.4%
+              {/* <TrendingUp className="h-3 w-3" /> +8.4% */}
             </span>
           </div>
           <p className="text-[10px] text-muted-foreground">Mapped across 18 teams</p>
@@ -87,7 +86,7 @@ export function OverviewView() {
           <div className="flex items-baseline justify-between">
             <span className="text-xl font-bold font-mono tracking-tight text-foreground">58,410</span>
             <span className="text-[11px] font-medium text-success flex items-center gap-0.5">
-              <TrendingUp className="h-3 w-3" /> +12.1%
+              {/* <TrendingUp className="h-3 w-3" /> +12.1% */}
             </span>
           </div>
           <p className="text-[10px] text-muted-foreground">Multi-hop connections</p>
@@ -113,7 +112,7 @@ export function OverviewView() {
           <div className="flex items-baseline justify-between">
             <span className="text-xl font-bold font-mono tracking-tight text-foreground">5 Sources</span>
             <span className="inline-flex items-center gap-1 text-[11px] text-success">
-              <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" /> Live
+              {/* <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" /> Live */}
             </span>
           </div>
           <p className="text-[10px] text-muted-foreground">Slack, Jira, Confluence, GitHub</p>

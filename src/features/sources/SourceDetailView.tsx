@@ -2,10 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, Database, RefreshCw, CheckCircle2, Clock, ShieldCheck, Activity } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { MOCK_INGESTION_JOBS } from "@/mocks/sources";
 import { toast } from "sonner";
 

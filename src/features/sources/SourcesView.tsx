@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Database, RefreshCw, ArrowRight, CheckCircle2, AlertCircle, Clock } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { RefreshCw, ArrowRight } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";

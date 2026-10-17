@@ -4,20 +4,18 @@ import * as React from "react";
 import Link from "next/link";
 import {
   BotMessageSquare,
-  Sparkles,
   Send,
   User,
   ArrowUpRight,
   RefreshCw,
-  SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EvidencePanel } from "@/components/evidence/EvidencePanel";
 import { CitationChip } from "@/components/evidence/CitationChip";
-import { MOCK_EVIDENCE_CLAIMS, MOCK_CITATIONS } from "@/mocks/evidence";
+import { MOCK_EVIDENCE_CLAIMS } from "@/mocks/evidence";
 import { EvidenceClaim } from "@/types";
 
 interface ChatMessage {
@@ -49,36 +47,42 @@ export function AssistantView({ conversationId }: { conversationId?: string }) {
   const [inputText, setInputText] = React.useState("");
   const [isSynthesizing, setIsSynthesizing] = React.useState(false);
   const [inspectedClaim, setInspectedClaim] = React.useState<EvidenceClaim | null>(MOCK_EVIDENCE_CLAIMS[0]);
+  const msgCounter = React.useRef(10);
 
-  const handleSend = (textToSend?: string) => {
-    const text = textToSend || inputText;
-    if (!text.trim()) return;
+  const handleSend = React.useCallback(
+    (textToSend?: string) => {
+      const text = textToSend || inputText;
+      if (!text.trim()) return;
 
-    const userMsg: ChatMessage = {
-      id: `usr-${Date.now()}`,
-      sender: "user",
-      text: text.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    setInputText("");
-    setIsSynthesizing(true);
-
-    // Simulate verified FalkorDB traversal & synthesis
-    setTimeout(() => {
-      const assistantMsg: ChatMessage = {
-        id: `ast-${Date.now()}`,
-        sender: "assistant",
-        text: `Cross-referencing organizational knowledge for "${text}":\n\nThe FalkorDB graph corroborates that the security and compliance policy enforces strict PII scrubbing across all Slack and Confluence ingestion pipelines prior to vector indexing. Verified in the latest SOC-2 Type II audit.`,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        claim: MOCK_EVIDENCE_CLAIMS[1],
+      const userMsgId = `usr-${msgCounter.current++}`;
+      const userMsg: ChatMessage = {
+        id: userMsgId,
+        sender: "user",
+        text: text.trim(),
+        timestamp: "Just now",
       };
-      setMessages((prev) => [...prev, assistantMsg]);
-      setInspectedClaim(MOCK_EVIDENCE_CLAIMS[1]);
-      setIsSynthesizing(false);
-    }, 900);
-  };
+
+      setMessages((prev) => [...prev, userMsg]);
+      setInputText("");
+      setIsSynthesizing(true);
+
+      // Simulate verified FalkorDB traversal & synthesis
+      setTimeout(() => {
+        const astMsgId = `ast-${msgCounter.current++}`;
+        const assistantMsg: ChatMessage = {
+          id: astMsgId,
+          sender: "assistant",
+          text: `Cross-referencing organizational knowledge for "${text}":\n\nThe FalkorDB graph corroborates that the security and compliance policy enforces strict PII scrubbing across all Slack and Confluence ingestion pipelines prior to vector indexing. Verified in the latest SOC-2 Type II audit.`,
+          timestamp: "Just now",
+          claim: MOCK_EVIDENCE_CLAIMS[1],
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        setInspectedClaim(MOCK_EVIDENCE_CLAIMS[1]);
+        setIsSynthesizing(false);
+      }, 900);
+    },
+    [inputText]
+  );
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
@@ -90,7 +94,7 @@ export function AssistantView({ conversationId }: { conversationId?: string }) {
               Knowledge Assistant
             </h1>
             <Badge variant="outline" className="font-mono text-[10px]">
-              Ground-Truth Verified
+              {conversationId ? `Session ${conversationId}` : "Ground-Truth Verified"}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { FolderGit2, ArrowRight, Layers, CheckCircle2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
