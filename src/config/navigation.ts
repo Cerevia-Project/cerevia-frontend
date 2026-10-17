@@ -4,10 +4,10 @@ export const NAVIGATION_ITEMS: NavItem[] = [
   // Workspace
   {
     title: "Overview",
-    href: "/",
+    href: "/overview",
     icon: "LayoutDashboard",
     section: "workspace",
-    exact: true,
+    exact: false,
   },
   {
     title: "AI Assistant",

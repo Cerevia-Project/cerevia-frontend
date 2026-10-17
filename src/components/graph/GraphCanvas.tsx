@@ -21,7 +21,10 @@ export interface GraphCanvasProps {
   filterType?: EntityType | "all";
 }
 
-const ENTITY_ICONS: Record<EntityType, React.ComponentType<{ className?: string }>> = {
+const ENTITY_ICONS: Record<
+  EntityType,
+  React.ComponentType<{ className?: string; style?: React.CSSProperties }>
+> = {
   person: User,
   team: Users,
   project: FolderGit2,

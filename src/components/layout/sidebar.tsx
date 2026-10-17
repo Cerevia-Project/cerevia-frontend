@@ -75,7 +75,9 @@ export function Sidebar({
         const Icon = ICON_MAP[item.icon] || Layers;
         const isActive = item.exact
           ? pathname === item.href
-          : pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+          : pathname === item.href ||
+            (item.href === "/overview" && pathname === "/") ||
+            (item.href !== "/" && pathname.startsWith(item.href));
 
         const linkContent = (
           <Link
