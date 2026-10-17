@@ -16,6 +16,7 @@ import {
   Send,
   Trash2,
   Plus,
+  Network,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
@@ -86,9 +87,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { EmptyState } from "@/components/ui/empty-state";
-import { ErrorState } from "@/components/ui/error-state";
-import { LoadingState } from "@/components/ui/loading-state";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  AccessDeniedState,
+} from "@/components/feedback";
+import { GraphCanvas, GraphControls, NodeInspector } from "@/components/graph";
+import { MOCK_GRAPH_DATA } from "@/mocks/graph";
 import { EvidenceBadge } from "@/components/evidence/EvidenceBadge";
 import { CitationChip } from "@/components/evidence/CitationChip";
 import { EvidencePanel } from "@/components/evidence/EvidencePanel";
@@ -96,7 +102,7 @@ import { SourcePreview } from "@/components/evidence/SourcePreview";
 import { EntityBadge } from "@/components/entities/EntityBadge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { COLOR_TOKENS, EVIDENCE_STATES_CONFIG, ENTITY_TYPES_CONFIG } from "@/config/tokens";
-import { EvidenceState, EntityType, SourceDocument, EvidenceClaim } from "@/types";
+import { EvidenceState, EntityType, SourceDocument, EvidenceClaim, GraphNode } from "@/types";
 
 export default function DesignSystemPage() {
   const [copiedToken, setCopiedToken] = React.useState<string | null>(null);
@@ -104,6 +110,12 @@ export default function DesignSystemPage() {
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [previewDoc, setPreviewDoc] = React.useState<SourceDocument | null>(null);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+
+  // Graph interactive demo states
+  const [graphZoom, setGraphZoom] = React.useState(1);
+  const [graphFilter, setGraphFilter] = React.useState<EntityType | "all">("all");
+  const [graphSearch, setGraphSearch] = React.useState("");
+  const [selectedGraphNode, setSelectedGraphNode] = React.useState<GraphNode | null>(MOCK_GRAPH_DATA.nodes[0]);
 
   // Form interactive demo states
   const [inputVal, setInputVal] = React.useState("Autonomous Agent Architecture");
@@ -433,6 +445,56 @@ export default function DesignSystemPage() {
                 })}
               </div>
             </Card>
+          </div>
+
+          {/* Section: Interactive Graph Canvas & Controls */}
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Network className="h-4 w-4 text-primary" />
+                Knowledge Graph Canvas &amp; Controls (`GraphCanvas`, `GraphControls`, `NodeInspector`)
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Restrained, non-neon canvas visualization with pan/zoom, dynamic entity category styling, relation labels, and slide-out node inspector.
+              </p>
+            </div>
+            <GraphControls
+              zoom={graphZoom}
+              onZoomChange={setGraphZoom}
+              onResetZoom={() => setGraphZoom(1)}
+              filterType={graphFilter}
+              onFilterChange={setGraphFilter}
+              searchQuery={graphSearch}
+              onSearchChange={setGraphSearch}
+              nodeCount={MOCK_GRAPH_DATA.nodes.length}
+              edgeCount={MOCK_GRAPH_DATA.edges.length}
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              <div className={selectedGraphNode ? "lg:col-span-3" : "lg:col-span-4"}>
+                <GraphCanvas
+                  data={MOCK_GRAPH_DATA}
+                  selectedNodeId={selectedGraphNode?.id || null}
+                  onSelectNode={setSelectedGraphNode}
+                  zoom={graphZoom}
+                  filterType={graphFilter}
+                  className="h-[460px]"
+                />
+              </div>
+              {selectedGraphNode && (
+                <div className="lg:col-span-1 h-[460px]">
+                  <NodeInspector
+                    node={selectedGraphNode}
+                    edges={MOCK_GRAPH_DATA.edges}
+                    allNodes={MOCK_GRAPH_DATA.nodes}
+                    onClose={() => setSelectedGraphNode(null)}
+                    onNavigateToNode={(nodeId) => {
+                      const found = MOCK_GRAPH_DATA.nodes.find((n) => n.id === nodeId);
+                      if (found) setSelectedGraphNode(found);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </TabsContent>
 
@@ -918,6 +980,20 @@ export default function DesignSystemPage() {
                 <LoadingState variant="skeleton" />
               </div>
             </div>
+          </Card>
+
+          {/* Access Denied State */}
+          <Card className="p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-3">
+              Access Denied State (`AccessDeniedState`)
+            </h3>
+            <AccessDeniedState
+              title="Restricted Architecture RFC Subgraph"
+              requiredRole="Knowledge Steward"
+              description="You do not have the required permissions to view internal compliance and cryptographic key material in this FalkorDB graph domain."
+              onGoBack={() => toast.info("Navigating back...")}
+              onRequestAccess={() => toast.success("Access request sent to workspace administrator.")}
+            />
           </Card>
         </TabsContent>
 
