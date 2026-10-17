@@ -1,12 +1,23 @@
+import * as React from "react";
 import { PersonDetailView } from "@/features/people";
 
-export const dynamic = "force-dynamic";
-
-export default async function PersonDetailPage({
+async function PersonDetailContent({
   params,
 }: {
   params: Promise<{ personId: string }>;
 }) {
   const { personId } = await params;
   return <PersonDetailView personId={personId} />;
+}
+
+export default function PersonDetailPage({
+  params,
+}: {
+  params: Promise<{ personId: string }>;
+}) {
+  return (
+    <React.Suspense fallback={<div className="h-32 rounded-md bg-secondary animate-pulse" />}>
+      <PersonDetailContent params={params} />
+    </React.Suspense>
+  );
 }

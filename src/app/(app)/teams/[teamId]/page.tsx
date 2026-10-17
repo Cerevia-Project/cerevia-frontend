@@ -1,12 +1,23 @@
+import * as React from "react";
 import { TeamDetailView } from "@/features/teams";
 
-export const dynamic = "force-dynamic";
-
-export default async function TeamDetailPage({
+async function TeamDetailContent({
   params,
 }: {
   params: Promise<{ teamId: string }>;
 }) {
   const { teamId } = await params;
   return <TeamDetailView teamId={teamId} />;
+}
+
+export default function TeamDetailPage({
+  params,
+}: {
+  params: Promise<{ teamId: string }>;
+}) {
+  return (
+    <React.Suspense fallback={<div className="h-32 rounded-md bg-secondary animate-pulse" />}>
+      <TeamDetailContent params={params} />
+    </React.Suspense>
+  );
 }

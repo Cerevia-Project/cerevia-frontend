@@ -1,12 +1,23 @@
+import * as React from "react";
 import { ActionDetailView } from "@/features/actions";
 
-export const dynamic = "force-dynamic";
-
-export default async function ActionDetailPage({
+async function ActionDetailContent({
   params,
 }: {
   params: Promise<{ proposalId: string }>;
 }) {
   const { proposalId } = await params;
   return <ActionDetailView proposalId={proposalId} />;
+}
+
+export default function ActionDetailPage({
+  params,
+}: {
+  params: Promise<{ proposalId: string }>;
+}) {
+  return (
+    <React.Suspense fallback={<div className="h-32 rounded-md bg-secondary animate-pulse" />}>
+      <ActionDetailContent params={params} />
+    </React.Suspense>
+  );
 }
