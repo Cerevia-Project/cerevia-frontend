@@ -57,6 +57,36 @@ export interface EvidenceClaim {
   counterEvidence?: string;
 }
 
+// Knowledge Graph Node
+export interface GraphNode {
+  id: string;
+  label: string;
+  type: EntityType;
+  description?: string;
+  status?: string;
+  evidenceState?: EvidenceState;
+  confidence?: number;
+  metadata?: Record<string, string | number>;
+  x?: number;
+  y?: number;
+}
+
+// Knowledge Graph Edge
+export interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  label: string;
+  confidence?: number;
+  state?: EvidenceState;
+}
+
+// Knowledge Graph Structure
+export interface GraphData {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
 // Navigation Item
 export interface NavItem {
   title: string;
@@ -77,4 +107,59 @@ export interface UserProfile {
   team: string;
   avatarUrl?: string;
   status: "online" | "away" | "busy" | "offline";
+}
+
+// Decision Record
+export interface DecisionRecord {
+  id: string;
+  code: string;
+  title: string;
+  summary: string;
+  status: "accepted" | "superseded" | "under_review" | "deprecated";
+  date: string;
+  owner: string;
+  team: string;
+  impactScore: "High" | "Medium" | "Low";
+  evidenceState: EvidenceState;
+  context: string;
+  drivers: string[];
+  optionsConsidered: {
+    title: string;
+    pros: string[];
+    cons: string[];
+    chosen?: boolean;
+  }[];
+  consequences: string[];
+  relatedNodes?: string[];
+  citations?: Citation[];
+}
+
+// Project Record
+export interface ProjectRecord {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  status: "active" | "planned" | "completed" | "at_risk";
+  owner: string;
+  team: string;
+  progress: number;
+  targetQuarter: string;
+  relatedDecisionsCount: number;
+  documentsCount: number;
+  evidenceState: EvidenceState;
+}
+
+// Action Proposal
+export interface ActionProposal {
+  id: string;
+  title: string;
+  description: string;
+  status: "pending_review" | "approved" | "executed" | "rejected";
+  proposer: string;
+  date: string;
+  impact: string;
+  riskLevel: "low" | "medium" | "high";
+  evidenceState: EvidenceState;
+  suggestedChanges: string[];
 }

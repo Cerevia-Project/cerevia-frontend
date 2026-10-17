@@ -1,0 +1,136 @@
+/* Cerevia Centralized Design Tokens
+ * Professional, calm business-intelligence aesthetic
+ */
+
+:root {
+  /* Application Canvas & Base Surfaces */
+  --background: #F7F8FA;
+  --foreground: #202733;
+  --card: #FFFFFF;
+  --card-foreground: #202733;
+  --popover: #FFFFFF;
+  --popover-foreground: #202733;
+
+  /* Secondary & Muted Surfaces */
+  --secondary: #F1F3F5;
+  --secondary-foreground: #202733;
+  --muted: #F1F3F5;
+  --muted-foreground: #667085;
+  --accent: #EDF2F7;
+  --accent-foreground: #202733;
+
+  /* Restrained Slate-Blue Accent */
+  --primary: #526B8A;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #425975;
+  --primary-subtle: #EEF3F8;
+
+  /* Subtle Borders & Input Controls */
+  --border: #E2E6EB;
+  --border-subtle: #ECEFF2;
+  --input: #D6DCE3;
+  --ring: #526B8A;
+  --radius: 6px;
+
+  /* Semantic Status Tokens */
+  --success: #2F7D5B;
+  --success-foreground: #FFFFFF;
+  --success-subtle: #EBF5F0;
+  --success-border: #BCDCCB;
+
+  --warning: #A66A18;
+  --warning-foreground: #FFFFFF;
+  --warning-subtle: #FAF2E6;
+  --warning-border: #ECD5AE;
+
+  --destructive: #B54747;
+  --destructive-foreground: #FFFFFF;
+  --destructive-subtle: #FBEFEF;
+  --destructive-border: #F0C4C4;
+
+  --info: #496C91;
+  --info-foreground: #FFFFFF;
+  --info-subtle: #EEF4FA;
+  --info-border: #C8DBED;
+
+  /* Graph Entity Tokens */
+  --entity-person: #3A8275;
+  --entity-team: #6B5B95;
+  --entity-project: #4A7298;
+  --entity-decision: #946E24;
+  --entity-document: #944E63;
+
+  /* Evidence Verification States */
+  --evidence-confirmed: #2F7D5B;
+  --evidence-inferred: #526B8A;
+  --evidence-hypothesis: #6E5698;
+  --evidence-conflicting: #A66A18;
+  --evidence-missing: #7B8494;
+
+  /* Layout Scale */
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 56px;
+  --header-height: 50px;
+}
+
+.dark {
+  /* Dark Mode: Neutral charcoal surfaces, no neon or pitch black */
+  --background: #181B20;
+  --foreground: #EDF0F5;
+  --card: #20242B;
+  --card-foreground: #EDF0F5;
+  --popover: #20242B;
+  --popover-foreground: #EDF0F5;
+
+  --secondary: #272C35;
+  --secondary-foreground: #EDF0F5;
+  --muted: #272C35;
+  --muted-foreground: #9BA3AF;
+  --accent: #2A313C;
+  --accent-foreground: #EDF0F5;
+
+  --primary: #738DAE;
+  --primary-foreground: #14171C;
+  --primary-hover: #8CA4C4;
+  --primary-subtle: #222B36;
+
+  --border: #333945;
+  --border-subtle: #292E38;
+  --input: #3A414E;
+  --ring: #738DAE;
+
+  /* Semantic Status - Dark */
+  --success: #429A72;
+  --success-foreground: #102118;
+  --success-subtle: #192C23;
+  --success-border: #234837;
+
+  --warning: #C98628;
+  --warning-foreground: #2B1D08;
+  --warning-subtle: #2E2313;
+  --warning-border: #523D1F;
+
+  --destructive: #CF5D5D;
+  --destructive-foreground: #FFFFFF;
+  --destructive-subtle: #2E1B1B;
+  --destructive-border: #542B2B;
+
+  --info: #678EB7;
+  --info-foreground: #101E2B;
+  --info-subtle: #1A2736;
+  --info-border: #2A435C;
+
+  /* Graph Entities - Dark */
+  --entity-person: #4DA192;
+  --entity-team: #8A79B5;
+  --entity-project: #6992BA;
+  --entity-decision: #B58B39;
+  --entity-document: #B3687F;
+
+  /* Evidence Verification States - Dark */
+  --evidence-confirmed: #429A72;
+  --evidence-inferred: #738DAE;
+  --evidence-hypothesis: #8A76B0;
+  --evidence-conflicting: #C98628;
+  --evidence-missing: #9199A6;
+}
