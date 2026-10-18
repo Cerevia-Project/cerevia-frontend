@@ -1,6 +1,8 @@
 import * as React from "react";
 import { AssistantView } from "@/features/assistant";
 
+export const instant = false;
+
 async function ConversationContent({
   params,
 }: {

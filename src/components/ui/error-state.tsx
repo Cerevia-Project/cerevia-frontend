@@ -13,8 +13,8 @@ export interface ErrorStateProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export function ErrorState({
-  title = "Failed to load knowledge data",
-  message = "An unexpected error occurred while communicating with the knowledge graph service. Please try again.",
+  title = "Could not load this view",
+  message = "Something went wrong while loading this. Try again.",
   code,
   onRetry,
   retryText = "Retry Request",

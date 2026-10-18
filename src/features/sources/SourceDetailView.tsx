@@ -2,104 +2,206 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { MOCK_INGESTION_JOBS } from "@/mocks/sources";
+import { AlertTriangle, ArrowLeft, Check, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { QueryBoundary, SampleDataBadge } from "@/components/feedback";
+import { usePermission } from "@/providers/session-provider";
+import { useIngestionJob, useRetryIngestionJob } from "@/features/sources/api";
+import { formatDateTime, formatPercent, humanize } from "@/lib/formatters";
+import type { IngestionJob } from "@/api/types";
+
+const STAGES = ["validating", "extracting", "embedding", "graphing"] as const;
 
 export function SourceDetailView({ jobId }: { jobId: string }) {
-  const job = MOCK_INGESTION_JOBS.find((j) => j.id === jobId) || MOCK_INGESTION_JOBS[0];
-  const [isSyncing, setIsSyncing] = React.useState(false);
+  const query = useIngestionJob(jobId);
+  const retry = useRetryIngestionJob();
+  const canRetry = usePermission("sources:upload");
 
-  const handleSync = () => {
-    setIsSyncing(true);
-    setTimeout(() => {
-      setIsSyncing(false);
-      toast.success("Incremental sync completed.");
-    }, 1200);
+  return (
+    <div className="max-w-4xl space-y-6">
+      <Button asChild variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground">
+        <Link href="/sources">
+          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+          Back to knowledge sources
+        </Link>
+      </Button>
+
+      <QueryBoundary
+        query={query}
+        errorTitle="Could not load this ingestion job"
+        notFoundTitle="Ingestion job not found"
+        notFoundDescription="This job does not exist, or it is outside your access."
+      >
+        {(job) => (
+          <div className="space-y-6">
+            <header className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="font-mono text-base font-semibold tracking-tight text-foreground">
+                    {job.id}
+                  </h1>
+                  <StatusBadge job={job} />
+                  {job.isSampleData && <SampleDataBadge />}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Source{" "}
+                  <span className="font-mono text-foreground">{job.sourceId}</span>
+                  {job.documentId && (
+                    <>
+                      {" · document "}
+                      <span className="font-mono text-foreground">{job.documentId}</span>
+                    </>
+                  )}
+                </p>
+              </div>
+
+              {job.status === "failed" && canRetry && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1.5 text-xs"
+                  disabled={retry.isPending}
+                  onClick={() =>
+                    retry.mutate(job.id, {
+                      onSuccess: () => toast.success("Retry queued."),
+                    })
+                  }
+                >
+                  <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                  {retry.isPending ? "Retrying…" : "Retry ingestion"}
+                </Button>
+              )}
+            </header>
+
+            {job.error && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-md border border-[var(--destructive-border)] bg-[var(--destructive-subtle)] p-3"
+              >
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--destructive)]" aria-hidden="true" />
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Ingestion failed</p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                    {job.error}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <Card>
+              <CardHeader className="border-b border-border p-4">
+                <CardTitle className="text-sm font-semibold">Pipeline</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <StageProgress job={job} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="border-b border-border p-4">
+                <CardTitle className="text-sm font-semibold">Job detail</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <dl className="grid grid-cols-2 gap-4 text-xs sm:grid-cols-4">
+                  <Field label="Status" value={humanize(job.status)} />
+                  <Field label="Stage" value={humanize(job.stage)} />
+                  <Field
+                    label="Progress"
+                    value={job.progress === undefined ? "-" : formatPercent(job.progress)}
+                  />
+                  <Field label="Created" value={formatDateTime(job.createdAt)} />
+                  {job.updatedAt && <Field label="Updated" value={formatDateTime(job.updatedAt)} />}
+                </dl>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </QueryBoundary>
+    </div>
+  );
+}
+
+function StatusBadge({ job }: { job: IngestionJob }) {
+  const styles: Record<string, string> = {
+    queued: "text-muted-foreground",
+    running: "text-primary border-primary/30 bg-primary/5",
+    done: "text-success border-success/30 bg-success/5",
+    failed:
+      "text-[var(--destructive)] border-[var(--destructive-border)] bg-[var(--destructive-subtle)]",
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      {/* Back button */}
-      <div>
-        <Button asChild variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground">
-          <Link href="/sources">
-            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-            Back to Ingestion Sources
-          </Link>
-        </Button>
-      </div>
+    <Badge variant="outline" className={`text-[10px] ${styles[job.status] ?? ""}`}>
+      {job.status === "running" && <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden="true" />}
+      {humanize(job.status)}
+    </Badge>
+  );
+}
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs px-2 py-0.5 rounded bg-secondary text-muted-foreground border border-border uppercase">
-              {job.connectorType}
+function StageProgress({ job }: { job: IngestionJob }) {
+  const stages: string[] = STAGES.includes(job.stage as (typeof STAGES)[number])
+    ? [...STAGES]
+    : [...STAGES, job.stage];
+  const currentIndex = stages.indexOf(job.stage);
+
+  return (
+    <ol className="space-y-2">
+      {stages.map((stage, index) => {
+        const isDone = job.status === "done" || (currentIndex > -1 && index < currentIndex);
+        const isCurrent = index === currentIndex && job.status !== "done";
+        const isFailed = isCurrent && job.status === "failed";
+
+        return (
+          <li key={stage} className="flex items-center gap-3">
+            <span
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] ${
+                isFailed
+                  ? "border-[var(--destructive-border)] bg-[var(--destructive-subtle)] text-[var(--destructive)]"
+                  : isDone
+                    ? "border-success/40 bg-success/10 text-success"
+                    : isCurrent
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground"
+              }`}
+              aria-hidden="true"
+            >
+              {isFailed ? (
+                <AlertTriangle className="h-3 w-3" />
+              ) : isDone ? (
+                <Check className="h-3 w-3" />
+              ) : isCurrent ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                index + 1
+              )}
             </span>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              {job.sourceName}
-            </h1>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {job.details || "Continuous ingestion pipeline with automated chunking and PII token filtering."}
-          </p>
-        </div>
+            <span
+              className={`text-xs ${
+                isCurrent || isDone ? "font-medium text-foreground" : "text-muted-foreground"
+              }`}
+            >
+              {humanize(stage)}
+            </span>
+            {isCurrent && job.progress !== undefined && (
+              <span className="ml-auto font-mono text-[11px] tabular-nums text-muted-foreground">
+                {formatPercent(job.progress)}
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
-        <Button size="sm" className="h-8 text-xs gap-1.5" onClick={handleSync} disabled={isSyncing}>
-          <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`} />
-          {isSyncing ? "Syncing..." : "Sync Now"}
-        </Button>
-      </div>
-
-      {/* Metric Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="p-3 text-xs space-y-0.5">
-          <span className="text-muted-foreground">Sync Status</span>
-          <p className="font-semibold text-foreground capitalize flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-success" /> {job.status}
-          </p>
-        </Card>
-        <Card className="p-3 text-xs space-y-0.5">
-          <span className="text-muted-foreground">Documents Indexed</span>
-          <p className="font-mono font-semibold text-foreground">{job.documentCount.toLocaleString()}</p>
-        </Card>
-        <Card className="p-3 text-xs space-y-0.5">
-          <span className="text-muted-foreground">Entities Extracted</span>
-          <p className="font-mono font-semibold text-foreground">{job.entitiesExtracted.toLocaleString()}</p>
-        </Card>
-        <Card className="p-3 text-xs space-y-0.5">
-          <span className="text-muted-foreground">Reliability Score</span>
-          <p className="font-mono font-semibold text-success">{job.reliability}%</p>
-        </Card>
-      </div>
-
-      {/* Sync Execution Logs */}
-      <Card>
-        <CardHeader className="p-4 border-b border-border flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-semibold">Recent Ingestion Log</CardTitle>
-          <span className="font-mono text-[11px] text-muted-foreground">Worker: ing-worker-us-east-1a</span>
-        </CardHeader>
-        <CardContent className="p-4 space-y-2 font-mono text-[11px] bg-background/50 rounded-b-md">
-          <div className="text-muted-foreground">
-            [10:14:02 UTC] Ingestion worker initialized for connector {job.id}
-          </div>
-          <div className="text-muted-foreground">
-            [10:14:03 UTC] Pulled 42 modified documents since watermark
-          </div>
-          <div className="text-muted-foreground">
-            [10:14:04 UTC] Presidio PII redaction pass: 0 leaks identified, 3 emails masked
-          </div>
-          <div className="text-foreground">
-            [10:14:05 UTC] Extracted 128 new relationships; dispatched Cypher batch commit to FalkorDB
-          </div>
-          <div className="text-success font-semibold">
-            [10:14:06 UTC] Pipeline commit succeeded. Index updated in 420ms.
-          </div>
-        </CardContent>
-      </Card>
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-0.5">
+      <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</dt>
+      <dd className="font-mono text-[11px] text-foreground">{value}</dd>
     </div>
   );
 }

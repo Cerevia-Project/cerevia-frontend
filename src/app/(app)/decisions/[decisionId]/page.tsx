@@ -1,6 +1,8 @@
 import * as React from "react";
 import { DecisionDetailView } from "@/features/decisions";
 
+export const instant = false;
+
 async function DecisionDetailContent({
   params,
 }: {

@@ -1,6 +1,8 @@
 import * as React from "react";
 import { ProjectDetailView } from "@/features/projects";
 
+export const instant = false;
+
 async function ProjectDetailContent({
   params,
 }: {

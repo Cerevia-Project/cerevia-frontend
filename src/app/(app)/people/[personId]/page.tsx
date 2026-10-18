@@ -1,6 +1,8 @@
 import * as React from "react";
 import { PersonDetailView } from "@/features/people";
 
+export const instant = false;
+
 async function PersonDetailContent({
   params,
 }: {

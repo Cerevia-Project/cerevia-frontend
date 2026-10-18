@@ -2,115 +2,167 @@
 
 import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-interface AuditEntry {
-  id: string;
-  timestamp: string;
-  actor: string;
-  action: string;
-  target: string;
-  status: "success" | "blocked";
-  latency: string;
-}
-
-const MOCK_AUDIT_LOGS: AuditEntry[] = [
-  {
-    id: "aud-901",
-    timestamp: "2026-10-17 10:14:02 UTC",
-    actor: "habib@cerevia.internal",
-    action: "GraphCypherTraversal",
-    target: "(:Decision)-[:governedBy]->(:Project)",
-    status: "success",
-    latency: "11ms",
-  },
-  {
-    id: "aud-902",
-    timestamp: "2026-10-17 09:42:15 UTC",
-    actor: "cerevia-assistant-worker",
-    action: "VectorEmbeddingQuery",
-    target: "doc-arch-001 §3.2",
-    status: "success",
-    latency: "8ms",
-  },
-  {
-    id: "aud-903",
-    timestamp: "2026-10-17 08:30:19 UTC",
-    actor: "devon.vance@cerevia.internal",
-    action: "ApproveActionProposal",
-    target: "ACT-02 (FalkorDB Memory 64GB)",
-    status: "success",
-    latency: "24ms",
-  },
-  {
-    id: "aud-904",
-    timestamp: "2026-10-16 19:12:44 UTC",
-    actor: "unauthorized-client-ip",
-    action: "DirectCypherQuery",
-    target: "MATCH (n:Person) RETURN n",
-    status: "blocked",
-    latency: "2ms",
-  },
-];
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { AccessDeniedState, EmptyState, QueryBoundary } from "@/components/feedback";
+import { AdminNav } from "@/features/admin/AdminNav";
+import { usePermission } from "@/providers/session-provider";
+import { useAdminAudit } from "@/features/admin/api";
+import { formatDateTime, humanize } from "@/lib/formatters";
 
 export function AuditView() {
+  const canRead = usePermission("admin:audit");
+  const [actor, setActor] = React.useState("");
+  const [action, setAction] = React.useState("");
+  const [from, setFrom] = React.useState("");
+  const [to, setTo] = React.useState("");
+  const [filters, setFilters] = React.useState<{
+    actor?: string;
+    action?: string;
+    from?: string;
+    to?: string;
+  }>({});
+
+  React.useEffect(() => {
+    const timer = setTimeout(
+      () =>
+        setFilters({
+          actor: actor.trim() || undefined,
+          action: action.trim() || undefined,
+          from: from ? new Date(from).toISOString() : undefined,
+          to: to ? new Date(to).toISOString() : undefined,
+        }),
+      350,
+    );
+    return () => clearTimeout(timer);
+  }, [actor, action, from, to]);
+
+  const query = useAdminAudit({ ...filters, limit: 100 });
+
+  if (!canRead) {
+    return (
+      <div className="space-y-4">
+        <AdminNav />
+        <AccessDeniedState description="Reading the audit log requires the admin:audit permission." />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Security &amp; Traversal Audit Trail
-            </h1>
-            <Badge variant="outline" className="font-mono text-[10px]">
-              SOC-2 Type II Certified
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Immutable log of all FalkorDB knowledge traversals, assistant syntheses, and role actions.
-          </p>
+      <AdminNav />
+
+      <header>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Audit log</h1>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Every privileged action, as the server recorded it.
+        </p>
+      </header>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="audit-actor" className="text-xs">
+            Actor
+          </Label>
+          <Input
+            id="audit-actor"
+            value={actor}
+            onChange={(event) => setActor(event.target.value)}
+            placeholder="user id or email"
+            className="h-8 w-48 text-xs"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="audit-action" className="text-xs">
+            Action
+          </Label>
+          <Input
+            id="audit-action"
+            value={action}
+            onChange={(event) => setAction(event.target.value)}
+            placeholder="proposal.approve"
+            className="h-8 w-48 text-xs"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="audit-from" className="text-xs">
+            From
+          </Label>
+          <Input
+            id="audit-from"
+            type="date"
+            value={from}
+            onChange={(event) => setFrom(event.target.value)}
+            className="h-8 w-40 text-xs"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="audit-to" className="text-xs">
+            To
+          </Label>
+          <Input
+            id="audit-to"
+            type="date"
+            value={to}
+            onChange={(event) => setTo(event.target.value)}
+            className="h-8 w-40 text-xs"
+          />
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="text-[11px] hover:bg-transparent">
-                <TableHead>Timestamp</TableHead>
-                <TableHead>Actor</TableHead>
-                <TableHead>Operation</TableHead>
-                <TableHead>Target Entity / Cypher</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Execution</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="text-xs">
-              {MOCK_AUDIT_LOGS.map((log) => (
-                <TableRow key={log.id} className="hover:bg-secondary/40 font-mono text-[11px]">
-                  <TableCell className="text-muted-foreground">{log.timestamp}</TableCell>
-                  <TableCell className="text-foreground">{log.actor}</TableCell>
-                  <TableCell className="font-medium text-foreground">{log.action}</TableCell>
-                  <TableCell className="text-muted-foreground max-w-xs truncate">{log.target}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-block px-1.5 py-0.5 rounded text-[10px] uppercase font-mono ${
-                        log.status === "success"
-                          ? "bg-success/10 text-success border border-success/20"
-                          : "bg-destructive/10 text-destructive border border-destructive/20"
-                      }`}
-                    >
-                      {log.status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">{log.latency}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <QueryBoundary
+        query={query}
+        errorTitle="Could not load the audit log"
+        isEmpty={(page) => page.items.length === 0}
+        empty={
+          <EmptyState
+            title="No audit records"
+            description="Nothing matches these filters."
+          />
+        }
+      >
+        {(page) => (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="text-[11px] hover:bg-transparent">
+                    <TableHead className="w-[190px]">When</TableHead>
+                    <TableHead className="w-[180px]">Actor</TableHead>
+                    <TableHead className="w-[180px]">Action</TableHead>
+                    <TableHead>Resource</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="text-xs">
+                  {page.items.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell className="font-mono text-[11px] text-muted-foreground">
+                        {formatDateTime(record.timestamp)}
+                      </TableCell>
+                      <TableCell className="font-mono text-[11px] text-foreground">
+                        {record.actor}
+                      </TableCell>
+                      <TableCell className="text-foreground">{humanize(record.action)}</TableCell>
+                      <TableCell className="font-mono text-[11px] text-muted-foreground">
+                        {record.resourceType}
+                        {record.resourceId ? ` · ${record.resourceId}` : ""}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+      </QueryBoundary>
     </div>
   );
 }

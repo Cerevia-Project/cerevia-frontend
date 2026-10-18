@@ -1,6 +1,8 @@
 import * as React from "react";
 import { ActionDetailView } from "@/features/actions";
 
+export const instant = false;
+
 async function ActionDetailContent({
   params,
 }: {

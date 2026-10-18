@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
-import { Menu, Search, Sparkles } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { Breadcrumbs, BreadcrumbItem } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -10,6 +10,16 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { CommandSearch } from "@/components/layout/command-search";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Sidebar } from "@/components/layout/sidebar";
+
+const RECORD_LABELS: Record<string, string> = {
+  assistant: "Conversation",
+  projects: "Project",
+  decisions: "Decision",
+  people: "Person",
+  teams: "Team",
+  sources: "Ingestion job",
+  actions: "Proposal",
+};
 
 export function Header() {
   const pathname = usePathname();
@@ -36,10 +46,13 @@ export function Header() {
     const segments = pathname.split("/").filter(Boolean);
     return segments.map((seg, idx) => {
       const href = "/" + segments.slice(0, idx + 1).join("/");
-      const formatted = seg
-        .split("-")
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" ");
+      const isRecordId = idx > 0 && /^[a-z]+_[\w-]+$/i.test(seg);
+      const formatted = isRecordId
+        ? (RECORD_LABELS[segments[idx - 1]] ?? "Details")
+        : seg
+            .split("-")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ");
       return {
         label: formatted,
         href: idx === segments.length - 1 ? undefined : href,
@@ -79,7 +92,7 @@ export function Header() {
           </div>
         </div>
 
-        {/* Right: Quick Search, Intelligence Badge, Theme Toggle, User Menu */}
+        {/* Right: Quick Search, Theme Toggle, User Menu */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Quick Search Button */}
           <button
@@ -89,18 +102,12 @@ export function Header() {
             aria-label="Search Cerevia knowledge graph"
           >
             <Search className="h-3.5 w-3.5" />
-            <span className="hidden md:inline">Search knowledge graph...</span>
-            <span className="md:hidden">Search...</span>
+            <span className="hidden md:inline">Search the knowledge graph…</span>
+            <span className="md:hidden">Search…</span>
             <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground bg-background border rounded">
               ⌘K
             </kbd>
           </button>
-
-          {/* AI Intelligence Status Indicator */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-medium text-primary">
-            <Sparkles className="h-3 w-3" />
-            <span>AI Reasoning Ready</span>
-          </div>
 
           {/* Theme Toggle */}
           <ThemeToggle />

@@ -1,163 +1,126 @@
 "use client";
 
 import * as React from "react";
-import {
-  FileText,
-  ExternalLink,
-  Shield,
-  Calendar,
-  User,
-  CheckCircle2,
-  FileCode,
-  MessageSquare,
-  Bookmark,
-} from "lucide-react";
-import { SourceDocument } from "@/types";
+import { FileText, Hash, Layers, BadgeCheck, AlertCircle } from "lucide-react";
+import type { Citation } from "@/api/types";
+import { useDocumentContent } from "@/features/sources/api";
+import { errorMessage } from "@/api/errors";
+import { humanize, formatVersion } from "@/lib/formatters";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export interface SourcePreviewProps {
-  source?: SourceDocument | null;
+  citation: Citation | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  confluence: FileText,
-  google_doc: FileText,
-  slack: MessageSquare,
-  jira: CheckCircle2,
-  github: FileCode,
-  pdf: Bookmark,
-  markdown: FileCode,
+const STATUS_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+  approved: BadgeCheck,
+  draft: FileText,
+  superseded: AlertCircle,
+  unknown: AlertCircle,
 };
 
-export function SourcePreview({
-  source,
-  open,
-  onOpenChange,
-}: SourcePreviewProps) {
-  if (!source) return null;
+/** Document text is untrusted: rendered as text, never as markup, never linked. */
+export function SourcePreview({ citation, open, onOpenChange }: SourcePreviewProps) {
+  const content = useDocumentContent(open && citation ? citation.documentId : null, citation?.chunkId);
 
-  const TypeIcon = TYPE_ICONS[source.type] || FileText;
+  if (!citation) return null;
+
+  const StatusIcon = STATUS_ICON[citation.sourceStatus] ?? AlertCircle;
+  const location = [
+    citation.section ? `Section ${citation.section}` : null,
+    citation.page !== null && citation.page !== undefined ? `Page ${citation.page}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto flex flex-col">
         <SheetHeader className="text-left space-y-2 pb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="uppercase text-[10px] font-mono tracking-wider">
-              <TypeIcon className="h-3 w-3 mr-1" />
-              {source.type.replace("_", " ")}
+              <FileText className="h-3 w-3 mr-1" aria-hidden="true" />
+              {citation.sourceType}
             </Badge>
-            <span className="font-mono text-xs text-muted-foreground">
-              {source.id}
+            <Badge variant="outline" className="text-[10px] font-mono">
+              <StatusIcon className="h-3 w-3 mr-1" aria-hidden="true" />
+              {humanize(citation.sourceStatus)}
+            </Badge>
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {formatVersion(citation.documentVersion)}
             </span>
           </div>
           <SheetTitle className="text-base font-semibold leading-tight text-foreground">
-            {source.title}
+            {citation.documentTitle}
           </SheetTitle>
-          {source.section && (
-            <SheetDescription className="text-xs text-muted-foreground">
-              Section: {source.section}
-            </SheetDescription>
+          {location && (
+            <SheetDescription className="text-xs text-muted-foreground">{location}</SheetDescription>
           )}
         </SheetHeader>
 
-        <div className="py-4 space-y-5 flex-1">
-          {/* Metadata Grid */}
-          <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-muted/40 border border-border/60 text-xs">
+        <div className="py-2 space-y-5 flex-1">
+          <dl className="grid grid-cols-2 gap-3 rounded-lg border border-border/60 bg-muted/40 p-3 text-xs">
             <div className="space-y-1">
-              <span className="text-muted-foreground flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5" /> Author
-              </span>
-              <p className="font-medium text-foreground">
-                {source.author}
-                {source.authorRole && (
-                  <span className="block text-[11px] text-muted-foreground font-normal">
-                    {source.authorRole}
-                  </span>
-                )}
-              </p>
+              <dt className="flex items-center gap-1.5 text-muted-foreground">
+                <Hash className="h-3.5 w-3.5" aria-hidden="true" /> Document
+              </dt>
+              <dd className="font-mono text-[11px] break-all text-foreground">
+                {citation.documentId}
+              </dd>
             </div>
-
             <div className="space-y-1">
-              <span className="text-muted-foreground flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5" /> Last Modified
-              </span>
-              <p className="font-medium text-foreground">{source.lastUpdated}</p>
+              <dt className="flex items-center gap-1.5 text-muted-foreground">
+                <Layers className="h-3.5 w-3.5" aria-hidden="true" /> Chunk
+              </dt>
+              <dd className="font-mono text-[11px] break-all text-foreground">{citation.chunkId}</dd>
             </div>
+          </dl>
 
-            <div className="space-y-1 col-span-2 pt-2 border-t border-border/40">
-              <span className="text-muted-foreground flex items-center gap-1.5">
-                <Shield className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                Evidence Reliability Score
-              </span>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="flex-1 bg-muted h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-emerald-500 h-full rounded-full transition-all"
-                    style={{ width: `${source.reliabilityScore}%` }}
-                  />
-                </div>
-                <span className="font-mono font-medium text-xs text-foreground">
-                  {source.reliabilityScore}%
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Highlighted Ingested Passage */}
           <div className="space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Ingested Evidence Excerpt
-            </h4>
-            <div className="p-3.5 rounded-md bg-card border border-border text-xs leading-relaxed text-foreground shadow-xs font-serif">
-              {source.highlightedText ? (
-                <>
-                  <span className="text-muted-foreground">... </span>
-                  <mark className="bg-amber-400/20 dark:bg-amber-400/30 text-foreground px-1 py-0.5 rounded font-sans font-medium border border-amber-500/30">
-                    {source.highlightedText}
-                  </mark>
-                  <span className="text-muted-foreground"> ...</span>
-                </>
-              ) : (
-                <p className="italic text-muted-foreground">{source.snippet}</p>
-              )}
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Ingested and mapped to the FalkorDB knowledge graph.
-            </p>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Cited passage
+            </h3>
+            <blockquote className="rounded-md border border-border bg-card p-3.5 text-xs leading-relaxed text-foreground shadow-xs">
+              <mark className="rounded border border-amber-500/30 bg-amber-400/20 px-1 py-0.5 font-medium text-foreground dark:bg-amber-400/30">
+                {citation.passage}
+              </mark>
+            </blockquote>
           </div>
 
           <Separator />
 
-          {/* Source Link */}
-          <div className="pt-2 flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">
-              Original Storage Provider
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs h-8"
-              onClick={() => {
-                if (source.sourceUrl) {
-                  window.open(source.sourceUrl, "_blank", "noopener,noreferrer");
-                }
-              }}
-              rightIcon={<ExternalLink className="h-3.5 w-3.5" />}
-            >
-              Open Original Record
-            </Button>
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Source text
+            </h3>
+            {content.isPending && (
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-5/6" />
+                <Skeleton className="h-3 w-4/6" />
+              </div>
+            )}
+            {content.isError && (
+              <p className="text-[11px] text-muted-foreground">
+                The source text could not be loaded: {errorMessage(content.error)}
+              </p>
+            )}
+            {content.data && (
+              <p className="whitespace-pre-wrap rounded-md border border-border/60 bg-muted/30 p-3 text-[11px] leading-relaxed text-foreground">
+                {content.data.content}
+              </p>
+            )}
           </div>
         </div>
       </SheetContent>

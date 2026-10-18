@@ -1,345 +1,342 @@
 "use client";
 
 import * as React from "react";
-import { GraphData, GraphNode, EntityType } from "@/types";
+import { useTheme } from "next-themes";
+import type {
+  Core,
+  CytoscapeOptions,
+  ElementDefinition,
+  EventObject,
+  LayoutOptions,
+  NodeSingular,
+  StylesheetStyle,
+} from "cytoscape";
 import { cn } from "@/lib/utils";
-import {
-  User,
-  Users,
-  FolderGit2,
-  FileCheck2,
-  FileText,
-} from "lucide-react";
+import type { GraphEdge, GraphNode, Subgraph } from "@/api/types";
+import { graphChrome, graphColor } from "@/components/graph/palette";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export interface GraphCanvasProps {
-  data: GraphData;
-  selectedNodeId?: string | null;
-  onSelectNode?: (node: GraphNode | null) => void;
-  className?: string;
-  zoom?: number;
-  onZoomChange?: (zoom: number) => void;
-  filterType?: EntityType | "all";
+export type GraphLayout = "force" | "hierarchical";
+
+export interface GraphCanvasHandle {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  fit: () => void;
+  exportPng: () => string | null;
+  focusNode: (nodeId: string) => void;
 }
 
-const ENTITY_ICONS: Record<
-  EntityType,
-  React.ComponentType<{ className?: string; style?: React.CSSProperties }>
-> = {
-  person: User,
-  team: Users,
-  project: FolderGit2,
-  decision: FileCheck2,
-  document: FileText,
-};
+export interface GraphCanvasProps {
+  subgraph: Subgraph;
+  colorKeys?: Record<string, string>;
+  selectedNodeId?: string | null;
+  selectedEdgeId?: string | null;
+  highlightedIds?: ReadonlySet<string>;
+  layout?: GraphLayout;
+  onSelectNode?: (node: GraphNode | null) => void;
+  onSelectEdge?: (edge: GraphEdge | null) => void;
+  onExpandNode?: (node: GraphNode) => void;
+  className?: string;
+}
 
-const ENTITY_COLORS: Record<EntityType, { bg: string; border: string; text: string; fill: string }> = {
-  person: {
-    bg: "rgba(58, 130, 117, 0.08)",
-    border: "#3A8275",
-    text: "#3A8275",
-    fill: "#3A8275",
-  },
-  team: {
-    bg: "rgba(107, 91, 149, 0.08)",
-    border: "#6B5B95",
-    text: "#6B5B95",
-    fill: "#6B5B95",
-  },
-  project: {
-    bg: "rgba(74, 114, 152, 0.08)",
-    border: "#4A7298",
-    text: "#4A7298",
-    fill: "#4A7298",
-  },
-  decision: {
-    bg: "rgba(148, 110, 36, 0.08)",
-    border: "#946E24",
-    text: "#946E24",
-    fill: "#946E24",
-  },
-  document: {
-    bg: "rgba(148, 78, 99, 0.08)",
-    border: "#944E63",
-    text: "#944E63",
-    fill: "#944E63",
-  },
-};
+/** Cytoscape adapter. The only module that imports cytoscape. */
+export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>(
+  function GraphCanvas(
+    {
+      subgraph,
+      colorKeys,
+      selectedNodeId,
+      selectedEdgeId,
+      highlightedIds,
+      layout = "force",
+      onSelectNode,
+      onSelectEdge,
+      onExpandNode,
+      className,
+    },
+    ref,
+  ) {
+    const containerRef = React.useRef<HTMLDivElement>(null);
+    const cyRef = React.useRef<Core | null>(null);
+    const [isReady, setIsReady] = React.useState(false);
+    const { resolvedTheme } = useTheme();
+    const isDark = resolvedTheme === "dark";
 
-export function GraphCanvas({
-  data,
-  selectedNodeId,
-  onSelectNode,
-  className,
-  zoom = 1,
-  filterType = "all",
-}: GraphCanvasProps) {
-  const [hoveredNodeId, setHoveredNodeId] = React.useState<string | null>(null);
-  const [pan, setPan] = React.useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = React.useState(false);
-  const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 });
-
-  const filteredNodes = React.useMemo(() => {
-    if (filterType === "all") return data.nodes;
-    return data.nodes.filter((node) => node.type === filterType);
-  }, [data.nodes, filterType]);
-
-  const activeNodeIds = React.useMemo(() => {
-    return new Set(filteredNodes.map((n) => n.id));
-  }, [filteredNodes]);
-
-  const filteredEdges = React.useMemo(() => {
-    return data.edges.filter(
-      (edge) => activeNodeIds.has(edge.source) && activeNodeIds.has(edge.target)
+    const nodeById = React.useMemo(
+      () => new Map(subgraph.nodes.map((node) => [node.id, node])),
+      [subgraph.nodes],
     );
-  }, [data.edges, activeNodeIds]);
+    const edgeById = React.useMemo(
+      () => new Map(subgraph.edges.map((edge) => [edge.id, edge])),
+      [subgraph.edges],
+    );
 
-  const nodeMap = React.useMemo(() => {
-    const map = new Map<string, GraphNode>();
-    data.nodes.forEach((n) => map.set(n.id, n));
-    return map;
-  }, [data.nodes]);
+    const lookups = React.useRef({ nodeById, edgeById });
+    lookups.current = { nodeById, edgeById };
+    const handlers = React.useRef({ onSelectNode, onSelectEdge, onExpandNode });
+    handlers.current = { onSelectNode, onSelectEdge, onExpandNode };
 
-  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
-    if ((e.target as HTMLElement).tagName === "svg" || (e.target as HTMLElement).id === "graph-background") {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-    }
-  };
+    React.useImperativeHandle(
+      ref,
+      (): GraphCanvasHandle => ({
+        zoomIn: () => cyRef.current?.zoom({ level: cyRef.current.zoom() * 1.25, renderedPosition: center(cyRef.current) }),
+        zoomOut: () => cyRef.current?.zoom({ level: cyRef.current.zoom() / 1.25, renderedPosition: center(cyRef.current) }),
+        fit: () => cyRef.current?.fit(undefined, 40),
+        exportPng: () => cyRef.current?.png({ full: true, scale: 2, bg: isDark ? "#14161a" : "#ffffff" }) ?? null,
+        focusNode: (nodeId: string) => {
+          const cy = cyRef.current;
+          if (!cy) return;
+          const element = cy.getElementById(nodeId);
+          if (element.nonempty()) cy.animate({ center: { eles: element }, duration: 180 });
+        },
+      }),
+      [isDark],
+    );
 
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (isDragging) {
-      setPan({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
+    React.useEffect(() => {
+      let disposed = false;
+      let instance: Core | null = null;
+
+      const boot = async () => {
+        const [{ default: cytoscape }, { default: fcose }, { default: dagre }] = await Promise.all([
+          import("cytoscape"),
+          import("cytoscape-fcose"),
+          import("cytoscape-dagre"),
+        ]);
+
+        if (disposed || !containerRef.current) return;
+
+        // `cytoscape.use` throws if an extension is registered twice.
+        const registry = cytoscape as unknown as { __cereviaLayoutsRegistered?: boolean };
+        if (!registry.__cereviaLayoutsRegistered) {
+          cytoscape.use(fcose);
+          cytoscape.use(dagre);
+          registry.__cereviaLayoutsRegistered = true;
+        }
+
+        const options: CytoscapeOptions = {
+          container: containerRef.current,
+          elements: [],
+          minZoom: 0.2,
+          maxZoom: 2.5,
+        };
+
+        instance = cytoscape(options);
+        cyRef.current = instance;
+
+        instance.on("tap", "node", (event: EventObject) => {
+          const node = lookups.current.nodeById.get(event.target.id());
+          if (node) handlers.current.onSelectNode?.(node);
+        });
+        instance.on("tap", "edge", (event: EventObject) => {
+          const edge = lookups.current.edgeById.get(event.target.id());
+          if (edge) handlers.current.onSelectEdge?.(edge);
+        });
+        instance.on("tap", (event: EventObject) => {
+          if (event.target === instance) {
+            handlers.current.onSelectNode?.(null);
+            handlers.current.onSelectEdge?.(null);
+          }
+        });
+        instance.on("dbltap", "node", (event: EventObject) => {
+          const node = lookups.current.nodeById.get(event.target.id());
+          if (node) handlers.current.onExpandNode?.(node);
+        });
+
+        setIsReady(true);
+      };
+
+      void boot();
+
+      return () => {
+        disposed = true;
+        instance?.destroy();
+        cyRef.current = null;
+        setIsReady(false);
+      };
+    }, []);
+
+    React.useEffect(() => {
+      const container = containerRef.current;
+      if (!container || !isReady || typeof ResizeObserver === "undefined") return;
+
+      const observer = new ResizeObserver(() => {
+        cyRef.current?.resize();
       });
-    }
-  };
+      observer.observe(container);
+      return () => observer.disconnect();
+    }, [isReady]);
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+    React.useEffect(() => {
+      const cy = cyRef.current;
+      if (!cy || !isReady) return;
 
-  return (
-    <div
-      className={cn(
-        "relative w-full h-[540px] overflow-hidden rounded-md border border-border bg-card select-none",
-        className
-      )}
-    >
-      {/* Background Grid - subtle technical blueprint style */}
-      <svg
-        className="w-full h-full cursor-grab active:cursor-grabbing"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      >
-        <defs>
-          <pattern
-            id="graph-grid"
-            width="28"
-            height="28"
-            patternUnits="userSpaceOnUse"
-          >
-            <circle cx="2" cy="2" r="0.75" className="fill-border/70" />
-          </pattern>
-          <marker
-            id="edge-arrow"
-            viewBox="0 0 10 10"
-            refX="22"
-            refY="5"
-            markerWidth="5"
-            markerHeight="5"
-            orient="auto-start-reverse"
-          >
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" className="fill-muted-foreground/60" />
-          </marker>
-          <marker
-            id="edge-arrow-active"
-            viewBox="0 0 10 10"
-            refX="22"
-            refY="5"
-            markerWidth="6"
-            markerHeight="6"
-            orient="auto-start-reverse"
-          >
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#526B8A" />
-          </marker>
-        </defs>
+      const elements: ElementDefinition[] = [
+        ...subgraph.nodes.map<ElementDefinition>((node) => ({
+          group: "nodes",
+          data: {
+            id: node.id,
+            label: node.label,
+            type: node.type,
+            colorKey: colorKeys?.[node.type] ?? node.type,
+          },
+        })),
+        ...subgraph.edges
+          .filter((edge) => nodeById.has(edge.from) && nodeById.has(edge.to))
+          .map<ElementDefinition>((edge) => ({
+            group: "edges",
+            data: {
+              id: edge.id,
+              source: edge.from,
+              target: edge.to,
+              label: edge.type,
+              current: edge.current ? 1 : 0,
+            },
+          })),
+      ];
 
-        <rect
-          id="graph-background"
-          width="100%"
-          height="100%"
-          fill="url(#graph-grid)"
-          onClick={() => onSelectNode?.(null)}
-        />
+      cy.batch(() => {
+        cy.elements().remove();
+        cy.add(elements);
+      });
 
-        {/* Dynamic Zoom and Pan Group */}
-        <g
-          transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}
-          style={{ transformOrigin: "center", transition: isDragging ? "none" : "transform 0.15s ease-out" }}
-        >
-          {/* Render Edges */}
-          {filteredEdges.map((edge) => {
-            const sourceNode = nodeMap.get(edge.source);
-            const targetNode = nodeMap.get(edge.target);
-            if (!sourceNode || !targetNode) return null;
+      if (elements.length === 0) return;
 
-            const x1 = sourceNode.x ?? 100;
-            const y1 = sourceNode.y ?? 100;
-            const x2 = targetNode.x ?? 300;
-            const y2 = targetNode.y ?? 300;
+      const prefersReducedMotion =
+        typeof window !== "undefined" &&
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-            const isEdgeHighlighted =
-              selectedNodeId === edge.source ||
-              selectedNodeId === edge.target ||
-              hoveredNodeId === edge.source ||
-              hoveredNodeId === edge.target;
+      // A force layout barely separates a few nodes, so their labels collide.
+      const isSmall = subgraph.nodes.length <= 12;
+      const layoutOptions = (
+        layout === "force" && isSmall
+          ? { name: "circle", avoidOverlap: true, spacingFactor: 1.8, padding: 80, animate: false }
+          : layout === "hierarchical"
+          ? { name: "dagre", rankDir: "LR", nodeSep: 90, rankSep: 160, animate: false }
+          : {
+              name: "fcose",
+              quality: "default",
+              randomize: subgraph.nodes.length > 40,
+              nodeSeparation: 170,
+              idealEdgeLength: 190,
+              animate: !prefersReducedMotion,
+              animationDuration: 320,
+            }
+      ) as unknown as LayoutOptions;
 
-            const midX = (x1 + x2) / 2;
-            const midY = (y1 + y2) / 2;
+      // Fit once the layout settles, without blowing a small graph up to fill the canvas.
+      const run = cy.layout(layoutOptions);
+      run.one("layoutstop", () => {
+        cy.fit(undefined, 60);
+        if (cy.zoom() > 1.15) {
+          cy.zoom(1.15);
+          cy.center();
+        }
+      });
+      run.run();
+    }, [subgraph, colorKeys, layout, isReady, nodeById]);
 
-            return (
-              <g key={edge.id} className="transition-all">
-                <line
-                  x1={x1}
-                  y1={y1}
-                  x2={x2}
-                  y2={y2}
-                  className={cn(
-                    "transition-all duration-150",
-                    isEdgeHighlighted
-                      ? "stroke-primary stroke-[1.75px]"
-                      : "stroke-border/80 stroke-[1px] dark:stroke-border"
-                  )}
-                  strokeDasharray={edge.state === "hypothesis" ? "3,3" : undefined}
-                  markerEnd={isEdgeHighlighted ? "url(#edge-arrow-active)" : "url(#edge-arrow)"}
-                />
-                {edge.label && (
-                  <g transform={`translate(${midX}, ${midY})`}>
-                    <rect
-                      x="-38"
-                      y="-9"
-                      width="76"
-                      height="18"
-                      rx="3"
-                      className="fill-card/90 stroke-border/70 stroke-[0.75px]"
-                    />
-                    <text
-                      textAnchor="middle"
-                      dy="3.5"
-                      className="text-[9px] font-mono fill-muted-foreground select-none"
-                    >
-                      {edge.label}
-                    </text>
-                  </g>
-                )}
-              </g>
-            );
-          })}
+    React.useEffect(() => {
+      const cy = cyRef.current;
+      if (!cy || !isReady) return;
 
-          {/* Render Nodes */}
-          {filteredNodes.map((node) => {
-            const x = node.x ?? 200;
-            const y = node.y ?? 200;
-            const isSelected = selectedNodeId === node.id;
-            const isHovered = hoveredNodeId === node.id;
-            const Icon = ENTITY_ICONS[node.type] || FileText;
-            const style = ENTITY_COLORS[node.type] || ENTITY_COLORS.document;
+      const chrome = graphChrome(isDark);
+      const stylesheet: StylesheetStyle[] = [
+        {
+          selector: "node",
+          style: {
+            width: 34,
+            height: 34,
+            "background-color": (element: NodeSingular) =>
+              graphColor(String(element.data("colorKey")), isDark).base,
+            "border-width": 2,
+            "border-color": chrome.edge,
+            label: "data(label)",
+            "font-size": 10,
+            color: (element: NodeSingular) =>
+              graphColor(String(element.data("colorKey")), isDark).label,
+            "text-valign": "bottom",
+            "text-margin-y": 6,
+            "text-wrap": "ellipsis",
+            "text-max-width": "150px",
+          },
+        },
+        {
+          selector: "edge",
+          style: {
+            width: 1.5,
+            "line-color": chrome.edge,
+            "target-arrow-color": chrome.edge,
+            "target-arrow-shape": "triangle",
+            "arrow-scale": 0.8,
+            "curve-style": "bezier",
+            label: "data(label)",
+            "font-size": 8,
+            color: chrome.edgeLabel,
+            "text-rotation": "autorotate",
+          },
+        },
+        {
+          selector: "edge[current = 0]",
+          style: {
+            "line-style": "dashed",
+            "line-color": chrome.historicalEdge,
+            "target-arrow-color": chrome.historicalEdge,
+          },
+        },
+        {
+          selector: ".cerevia-selected",
+          style: { "border-width": 4, "border-color": chrome.selection },
+        },
+        {
+          selector: ".cerevia-highlighted",
+          style: {
+            "line-color": chrome.highlight,
+            "target-arrow-color": chrome.highlight,
+            "border-color": chrome.highlight,
+            width: 3,
+            "z-index": 20,
+          },
+        },
+        { selector: ".cerevia-dimmed", style: { opacity: 0.2 } },
+      ] as unknown as StylesheetStyle[];
 
-            return (
-              <g
-                key={node.id}
-                transform={`translate(${x}, ${y})`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectNode?.(node);
-                }}
-                onMouseEnter={() => setHoveredNodeId(node.id)}
-                onMouseLeave={() => setHoveredNodeId(null)}
-                className="cursor-pointer"
-              >
-                {/* Node Box */}
-                <rect
-                  x="-75"
-                  y="-24"
-                  width="150"
-                  height="48"
-                  rx="6"
-                  className={cn(
-                    "transition-all duration-150",
-                    isSelected
-                      ? "fill-card stroke-primary stroke-[2px] shadow-sm"
-                      : isHovered
-                      ? "fill-card stroke-border-subtle stroke-[1.5px] shadow-sm"
-                      : "fill-card stroke-border stroke-[1px]"
-                  )}
-                />
+      cy.style(stylesheet);
+    }, [isDark, isReady, subgraph]);
 
-                {/* Left Accent indicator stripe */}
-                <rect
-                  x="-75"
-                  y="-24"
-                  width="4"
-                  height="48"
-                  rx="2"
-                  fill={style.border}
-                />
+    React.useEffect(() => {
+      const cy = cyRef.current;
+      if (!cy || !isReady) return;
 
-                {/* Icon wrapper */}
-                <rect
-                  x="-62"
-                  y="-12"
-                  width="24"
-                  height="24"
-                  rx="4"
-                  fill={style.bg}
-                />
-                <foreignObject x="-62" y="-12" width="24" height="24">
-                  <div className="flex h-full w-full items-center justify-center">
-                    <Icon className="h-3.5 w-3.5" style={{ color: style.text }} />
-                  </div>
-                </foreignObject>
+      cy.batch(() => {
+        cy.elements().removeClass("cerevia-selected cerevia-highlighted cerevia-dimmed");
 
-                {/* Node Label */}
-                <text
-                  x="-30"
-                  y="-3"
-                  className="text-[11px] font-semibold fill-foreground select-none"
-                >
-                  {node.label.length > 15 ? `${node.label.slice(0, 14)}…` : node.label}
-                </text>
+        if (highlightedIds && highlightedIds.size > 0) {
+          cy.elements().addClass("cerevia-dimmed");
+          for (const id of highlightedIds) {
+            cy.getElementById(id).removeClass("cerevia-dimmed").addClass("cerevia-highlighted");
+          }
+        }
 
-                {/* Node Subtitle / Type */}
-                <text
-                  x="-30"
-                  y="12"
-                  className="text-[9px] uppercase tracking-wider font-mono fill-muted-foreground select-none"
-                >
-                  {node.type}
-                </text>
+        if (selectedNodeId) cy.getElementById(selectedNodeId).addClass("cerevia-selected");
+        if (selectedEdgeId) cy.getElementById(selectedEdgeId).addClass("cerevia-highlighted");
+      });
+    }, [selectedNodeId, selectedEdgeId, highlightedIds, isReady, subgraph]);
 
-                {/* Evidence State Pill Indicator */}
-                {node.evidenceState && (
-                  <circle
-                    cx="62"
-                    cy="-14"
-                    r="3.5"
-                    className={cn(
-                      node.evidenceState === "confirmed" && "fill-success",
-                      node.evidenceState === "inferred" && "fill-primary",
-                      node.evidenceState === "hypothesis" && "fill-purple-600",
-                      node.evidenceState === "conflicting" && "fill-warning",
-                      node.evidenceState === "missing" && "fill-muted-foreground"
-                    )}
-                  />
-                )}
-              </g>
-            );
-          })}
-        </g>
-      </svg>
-    </div>
-  );
+    return (
+      <div className={cn("relative overflow-hidden rounded-md border border-border bg-card", className)}>
+        {!isReady && (
+          <div className="absolute inset-0 p-4">
+            <Skeleton className="h-full w-full rounded-md" />
+          </div>
+        )}
+        <div ref={containerRef} className="h-full w-full" aria-hidden="true" role="presentation" />
+      </div>
+    );
+  },
+);
+
+function center(cy: Core): { x: number; y: number } {
+  return { x: cy.width() / 2, y: cy.height() / 2 };
 }

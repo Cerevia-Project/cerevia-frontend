@@ -2,96 +2,86 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, Users, Network } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { ArrowLeft, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { MOCK_TEAMS } from "./TeamsView";
-import { MOCK_DECISIONS } from "@/mocks/decisions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { QueryBoundary } from "@/components/feedback";
+import { EntityBadge } from "@/components/entities/EntityBadge";
+import { useTeam } from "@/features/teams/api";
+import { entityHref, graphHref } from "@/lib/entity-routes";
+import type { EntityRef } from "@/api/types";
 
 export function TeamDetailView({ teamId }: { teamId: string }) {
-  const team = MOCK_TEAMS.find((t) => t.id === teamId) || MOCK_TEAMS[0];
-  const teamDecisions = MOCK_DECISIONS.filter((d) => d.team.toLowerCase().includes(team.name.toLowerCase()));
+  const query = useTeam(teamId);
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      {/* Back button */}
-      <div>
-        <Button asChild variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground">
-          <Link href="/teams">
-            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-            Back to Teams
-          </Link>
-        </Button>
-      </div>
+    <div className="max-w-4xl space-y-6">
+      <Button asChild variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground">
+        <Link href="/teams">
+          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+          Back to teams
+        </Link>
+      </Button>
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-secondary text-primary border border-border">
-            <Users className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              {team.name}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Lead: {team.lead} • {team.membersCount} active members
-            </p>
-          </div>
-        </div>
+      <QueryBoundary query={query} errorTitle="Could not load this team" notFoundTitle="Team not found">
+        {(team) => (
+          <div className="space-y-6">
+            <header className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <h1 className="text-xl font-semibold tracking-tight text-foreground">{team.label}</h1>
+              <Button asChild variant="outline" size="sm" className="h-8 text-xs">
+                <Link href={graphHref({ entity: team.id })}>
+                  <Network className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                  Open in the graph
+                </Link>
+              </Button>
+            </header>
 
-        <Button asChild size="sm" className="h-8 text-xs">
-          <Link href="/graph">
-            <Network className="mr-1.5 h-3.5 w-3.5" />
-            Inspect Team in Graph
-          </Link>
-        </Button>
-      </div>
-
-      {/* Team Description */}
-      <Card className="p-4 space-y-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
-          Charter &amp; Responsibilities
-        </h3>
-        <p className="text-xs text-foreground leading-relaxed">
-          {team.description}
-        </p>
-      </Card>
-
-      {/* Team Governed ADRs */}
-      <Card>
-        <CardHeader className="p-4 border-b border-border">
-          <CardTitle className="text-sm font-semibold">
-            Governed Decisions &amp; RFCs ({teamDecisions.length || 2})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 divide-y divide-border">
-          {(teamDecisions.length > 0 ? teamDecisions : MOCK_DECISIONS.slice(0, 2)).map((dec) => (
-            <div key={dec.id} className="py-2.5 first:pt-1 last:pb-1 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
-                    {dec.code}
-                  </span>
-                  <Link
-                    href={`/decisions/${dec.id}`}
-                    className="text-xs font-medium text-foreground hover:text-primary transition-colors"
-                  >
-                    {dec.title}
-                  </Link>
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
-                  {dec.summary}
-                </p>
-              </div>
-              <Badge variant="outline" className="text-[10px] font-mono shrink-0">
-                {dec.status}
-              </Badge>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <EntityCard
+                title={`Members (${team.members.length})`}
+                items={team.members}
+                emptyText="No member is recorded for this team."
+              />
+              <EntityCard
+                title={`Owns (${team.owned.length})`}
+                items={team.owned}
+                emptyText="Nothing is recorded as owned by this team."
+              />
             </div>
-          ))}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </QueryBoundary>
     </div>
+  );
+}
+
+function EntityCard({
+  title,
+  items,
+  emptyText,
+}: {
+  title: string;
+  items: EntityRef[];
+  emptyText: string;
+}) {
+  return (
+    <Card>
+      <CardHeader className="border-b border-border p-4">
+        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="p-4">
+        {items.length === 0 ? (
+          <p className="text-xs text-muted-foreground">{emptyText}</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {items.map((item) => (
+              <Link key={item.id} href={entityHref(item.type, item.id)}>
+                <EntityBadge type={item.type} label={item.label} size="sm" clickable />
+              </Link>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -2,116 +2,132 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight, Search } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Scale } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { EvidenceBadge } from "@/components/evidence/EvidenceBadge";
-import { CitationChip } from "@/components/evidence/CitationChip";
-import { MOCK_DECISIONS } from "@/mocks/decisions";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { EmptyState, QueryBoundary, SampleDataBadge } from "@/components/feedback";
+import { EntityBadge } from "@/components/entities/EntityBadge";
+import { ConflictsView } from "@/features/decisions/ConflictsView";
+import { useDecisions } from "@/features/decisions/api";
+import { formatDate, humanize } from "@/lib/formatters";
 
 export function DecisionsView() {
   const [search, setSearch] = React.useState("");
+  const [debounced, setDebounced] = React.useState("");
 
-  const filteredDecisions = React.useMemo(() => {
-    if (!search.trim()) return MOCK_DECISIONS;
-    const q = search.toLowerCase();
-    return MOCK_DECISIONS.filter(
-      (d) =>
-        d.title.toLowerCase().includes(q) ||
-        d.code.toLowerCase().includes(q) ||
-        d.summary.toLowerCase().includes(q) ||
-        d.team.toLowerCase().includes(q)
-    );
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebounced(search), 250);
+    return () => clearTimeout(timer);
   }, [search]);
+
+  const query = useDecisions(debounced.trim() ? { q: debounced.trim() } : {});
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Architectural Decision Records (ADRs)
-            </h1>
-            <Badge variant="outline" className="font-mono text-[10px]">
-              {MOCK_DECISIONS.length} Verified
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Immutable log of engineering, product, and platform architecture decisions verified in FalkorDB.
-          </p>
-        </div>
-      </div>
+      <header className="border-b border-border pb-3">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          Decisions and knowledge
+        </h1>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Recorded decisions, the evidence behind them, and places where sources disagree.
+        </p>
+      </header>
 
-      {/* Filter / Search Bar */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+      <Tabs defaultValue="decisions">
+        <TabsList>
+          <TabsTrigger value="decisions">Decisions</TabsTrigger>
+          <TabsTrigger value="conflicts">Conflicts</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="decisions" className="mt-4 space-y-4">
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search decisions by title, code, or team..."
-            className="h-8 pl-8 text-xs bg-background"
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search decisions…"
+            className="h-8 max-w-xs text-xs"
+            aria-label="Search decisions"
           />
-        </div>
-      </div>
 
-      {/* Decisions List */}
-      <div className="space-y-3">
-        {filteredDecisions.map((dec) => (
-          <Card key={dec.id} className="p-4 hover:border-primary/40 transition-colors">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-              <div className="space-y-1.5 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
-                    {dec.code}
-                  </span>
-                  <Link
-                    href={`/decisions/${dec.id}`}
-                    className="text-sm font-semibold text-foreground hover:text-primary transition-colors"
-                  >
-                    {dec.title}
-                  </Link>
-                  <EvidenceBadge state={dec.evidenceState} size="sm" />
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {dec.summary}
-                </p>
+          <QueryBoundary
+            query={query}
+            errorTitle="Could not load decisions"
+            isEmpty={(page) => page.items.length === 0}
+            empty={
+              <EmptyState
+                icon={<Scale className="h-4 w-4" />}
+                title="No decisions"
+                description="Decisions appear here once they are extracted from ingested documents."
+              />
+            }
+          >
+            {(page) => (
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="text-[11px] hover:bg-transparent">
+                        <TableHead>Decision</TableHead>
+                        <TableHead className="w-[150px]">Status</TableHead>
+                        <TableHead className="w-[190px]">Owner</TableHead>
+                        <TableHead className="w-[130px]">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="text-xs">
+                      {page.items.map((decision) => (
+                        <TableRow key={decision.id}>
+                          <TableCell className="font-medium text-foreground">
+                            <Link
+                              href={`/decisions/${encodeURIComponent(decision.id)}`}
+                              className="flex items-center gap-2 hover:text-primary"
+                            >
+                              {decision.title}
+                              {decision.isSampleData && <SampleDataBadge />}
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px]">
+                              {humanize(decision.status)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {decision.owner ? (
+                              <span className="flex items-center gap-1.5">
+                                <EntityBadge type={decision.owner.type} iconOnly size="sm" />
+                                <span className="truncate text-muted-foreground">
+                                  {decision.owner.label}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">No owner recorded</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-mono text-[11px] text-muted-foreground">
+                            {formatDate(decision.date)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+          </QueryBoundary>
+        </TabsContent>
 
-                {dec.citations && dec.citations.length > 0 && (
-                  <div className="pt-1 flex items-center gap-1.5">
-                    {dec.citations.map((c) => (
-                      <CitationChip key={c.id} citation={c} size="sm" />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="sm:text-right shrink-0 space-y-1 text-xs">
-                <div className="flex sm:flex-col sm:items-end gap-2">
-                  <Badge variant="outline" className="text-[10px] font-mono capitalize">
-                    {dec.status.replace("_", " ")}
-                  </Badge>
-                  <span className="text-[11px] font-mono text-muted-foreground">{dec.date}</span>
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  <span>Owner: </span>
-                  <span className="font-medium text-foreground">{dec.owner}</span>
-                </div>
-                <div className="pt-1">
-                  <Button asChild variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground hover:text-foreground">
-                    <Link href={`/decisions/${dec.id}`}>
-                      Details <ArrowRight className="ml-1 h-3 w-3" />
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+        <TabsContent value="conflicts" className="mt-4">
+          <ConflictsView />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

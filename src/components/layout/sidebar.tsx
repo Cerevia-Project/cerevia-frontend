@@ -14,14 +14,20 @@ import {
   CheckSquare,
   ShieldCheck,
   Palette,
+  Key,
+  ScrollText,
   ChevronLeft,
   ChevronRight,
-  Database,
   Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NAVIGATION_ITEMS } from "@/config/navigation";
-import { Badge } from "@/components/ui/badge";
+import {
+  NAVIGATION_ITEMS,
+  NAV_SECTION_TITLES,
+  isNavItemVisible,
+  type NavItem,
+} from "@/config/navigation";
+import { useSession } from "@/providers/session-provider";
 import {
   Tooltip,
   TooltipContent,
@@ -40,6 +46,8 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   CheckSquare,
   ShieldCheck,
   Palette,
+  Key,
+  ScrollText,
 };
 
 export interface SidebarProps {
@@ -58,13 +66,15 @@ export function Sidebar({
   onNavigate,
 }: SidebarProps) {
   const pathname = usePathname();
+  const { can } = useSession();
 
-  const workspaceItems = NAVIGATION_ITEMS.filter((i) => i.section === "workspace");
-  const intelligenceItems = NAVIGATION_ITEMS.filter((i) => i.section === "intelligence");
-  const managementItems = NAVIGATION_ITEMS.filter((i) => i.section === "management");
-  const systemItems = NAVIGATION_ITEMS.filter((i) => i.section === "system");
+  const visibleItems = NAVIGATION_ITEMS.filter((item) => isNavItemVisible(item, can));
+  const itemsIn = (section: NavItem["section"]) =>
+    visibleItems.filter((item) => item.section === section);
 
-  const renderNavGroup = (title: string, items: typeof NAVIGATION_ITEMS) => (
+  const renderNavGroup = (title: string, items: NavItem[]) => {
+    if (items.length === 0) return null;
+    return (
     <div className="space-y-1 mb-4">
       {!collapsed && (
         <h5 className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 select-none">
@@ -98,23 +108,7 @@ export function Sidebar({
                 isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
               )}
             />
-            {!collapsed && (
-              <>
-                <span className="truncate flex-1">{item.title}</span>
-                {item.badge && (
-                  <Badge
-                    variant={isActive ? "secondary" : item.badgeVariant || "outline"}
-                    size="sm"
-                    className={cn(
-                      "ml-auto text-[10px] font-mono",
-                      isActive && "bg-primary-foreground/20 text-primary-foreground border-transparent"
-                    )}
-                  >
-                    {item.badge}
-                  </Badge>
-                )}
-              </>
-            )}
+            {!collapsed && <span className="truncate flex-1">{item.title}</span>}
           </Link>
         );
 
@@ -123,13 +117,8 @@ export function Sidebar({
             <TooltipProvider key={item.href} delayDuration={150}>
               <Tooltip>
                 <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                <TooltipContent side="right" className="text-xs flex items-center gap-2">
-                  <span>{item.title}</span>
-                  {item.badge && (
-                    <Badge variant="outline" size="sm" className="text-[9px]">
-                      {item.badge}
-                    </Badge>
-                  )}
+                <TooltipContent side="right" className="text-xs">
+                  {item.title}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -138,8 +127,9 @@ export function Sidebar({
 
         return linkContent;
       })}
-    </div>
-  );
+      </div>
+    );
+  };
 
   return (
     <aside
@@ -191,29 +181,12 @@ export function Sidebar({
 
       {/* Navigation Groups */}
       <div className="flex-1 overflow-y-auto py-3 px-2">
-        {renderNavGroup("Core Workspace", workspaceItems)}
-        {renderNavGroup("Knowledge & Graph", intelligenceItems)}
-        {renderNavGroup("Management", managementItems)}
-        {renderNavGroup("Design Foundation", systemItems)}
+        {renderNavGroup(NAV_SECTION_TITLES.workspace, itemsIn("workspace"))}
+        {renderNavGroup(NAV_SECTION_TITLES.intelligence, itemsIn("intelligence"))}
+        {renderNavGroup(NAV_SECTION_TITLES.management, itemsIn("management"))}
+        {renderNavGroup(NAV_SECTION_TITLES.system, itemsIn("system"))}
       </div>
 
-      {/* Bottom Graph Connection Pill 
-      {!collapsed && (
-        <div className="p-3 border-t border-border/60 bg-muted/20">
-          <div className="p-2 rounded-md bg-muted/50 border border-border/60 space-y-1">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="font-semibold text-foreground flex items-center gap-1.5">
-                <Database className="h-3 w-3 text-primary" />
-                FalkorDB Graph
-              </span>
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            </div>
-            <p className="text-[10px] text-muted-foreground font-mono">
-              14,820 Nodes • 48.2k Rel
-            </p>
-          </div>
-        </div>
-      )}*/}
     </aside>
   );
 }

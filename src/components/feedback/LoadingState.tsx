@@ -11,7 +11,7 @@ export interface LoadingStateProps
 }
 
 export function LoadingState({
-  message = "Loading knowledge records...",
+  message = "Loading…",
   subtext,
   variant = "spinner",
   className,

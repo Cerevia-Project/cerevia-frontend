@@ -1,10 +1,18 @@
 import * as React from "react";
 import { AppShell } from "@/components/layout/app-shell";
+import { RequireSession } from "@/providers/require-session";
+
+// Everything here waits on the session, so there is no prerenderable shell to validate.
+export const instant = false;
 
 export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AppShell>{children}</AppShell>;
+  return (
+    <RequireSession>
+      <AppShell>{children}</AppShell>
+    </RequireSession>
+  );
 }

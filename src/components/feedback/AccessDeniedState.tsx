@@ -12,8 +12,8 @@ export interface AccessDeniedStateProps extends React.HTMLAttributes<HTMLDivElem
 }
 
 export function AccessDeniedState({
-  title = "Access Restricted",
-  description = "You do not have the required permissions to view this resource. Contact your workspace administrator for access.",
+  title = "You do not have access",
+  description = "Ask an administrator if you need access to this.",
   requiredRole,
   onGoBack,
   onRequestAccess,

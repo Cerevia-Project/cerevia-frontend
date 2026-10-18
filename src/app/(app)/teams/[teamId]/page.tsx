@@ -1,6 +1,8 @@
 import * as React from "react";
 import { TeamDetailView } from "@/features/teams";
 
+export const instant = false;
+
 async function TeamDetailContent({
   params,
 }: {

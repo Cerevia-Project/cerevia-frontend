@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { FolderSearch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -49,15 +50,16 @@ export function EmptyState({
       )}
       {(action || secondaryAction) && (
         <div className="mt-4 flex items-center gap-2">
-          {action && (
-            <Button
-              size="sm"
-              variant={action.variant || "default"}
-              onClick={action.onClick}
-            >
-              {action.label}
-            </Button>
-          )}
+          {action &&
+            (action.href ? (
+              <Button asChild size="sm" variant={action.variant || "default"}>
+                <Link href={action.href}>{action.label}</Link>
+              </Button>
+            ) : (
+              <Button size="sm" variant={action.variant || "default"} onClick={action.onClick}>
+                {action.label}
+              </Button>
+            ))}
           {secondaryAction && (
             <Button
               size="sm"

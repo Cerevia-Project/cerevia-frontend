@@ -1,6 +1,8 @@
 import * as React from "react";
 import { SourceDetailView } from "@/features/sources";
 
+export const instant = false;
+
 async function SourceDetailContent({
   params,
 }: {

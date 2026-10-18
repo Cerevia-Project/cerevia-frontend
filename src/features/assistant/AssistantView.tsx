@@ -1,248 +1,547 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   BotMessageSquare,
+  ChevronRight,
+  PanelRightClose,
+  PanelRightOpen,
   Send,
-  User,
-  ArrowUpRight,
-  RefreshCw,
+  Square,
+  ThumbsDown,
+  ThumbsUp,
+  Wrench,
+  X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { EvidencePanel } from "@/components/evidence/EvidencePanel";
-import { CitationChip } from "@/components/evidence/CitationChip";
-import { MOCK_EVIDENCE_CLAIMS } from "@/mocks/evidence";
-import { EvidenceClaim } from "@/types";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AccessLimitedNotice, InsufficientEvidence } from "@/components/feedback";
+import { EvidenceBadge } from "@/components/evidence/EvidenceBadge";
+import { SourcePreview } from "@/components/evidence/SourcePreview";
+import { AnswerText } from "@/features/assistant/AnswerText";
+import { ThreadList } from "@/features/assistant/ThreadList";
+import { EvidenceGraphPanel } from "@/features/assistant/EvidenceGraphPanel";
+import {
+  STAGE_LABELS,
+  useAssistantStream,
+  useConversation,
+  useCreateConversation,
+  useMessageFeedback,
+  useRetrievalTrace,
+  type StreamedAnswer,
+} from "@/features/assistant/api";
+import { useCreateProposal } from "@/features/actions/api";
+import { isDevTraceEnabled } from "@/lib/flags";
+import { errorMessage } from "@/api/errors";
+import type { Citation, Message, ProposalKind } from "@/api/types";
 
-interface ChatMessage {
-  id: string;
-  sender: "user" | "assistant";
-  text: string;
-  timestamp: string;
-  claim?: EvidenceClaim;
+export interface AssistantViewProps {
+  conversationId?: string;
 }
 
-const INITIAL_MESSAGES: ChatMessage[] = [
-  {
-    id: "msg-1",
-    sender: "user",
-    text: "Why was FalkorDB chosen over relational or other graph databases for Cerevia?",
-    timestamp: "10:14 AM",
-  },
-  {
-    id: "msg-2",
-    sender: "assistant",
-    text: "According to RFC-204 and Architecture Decision Record ADR-042, FalkorDB was chosen for three primary architectural reasons:\n\n1. Multi-hop traversal latency: Under 12k concurrent vector hybrid lookups, FalkorDB maintained sub-15ms p99 latency using Redis GraphBLAS linear algebra.\n2. Memory Footprint: Tenant memory consumption dropped from 140GB to 38GB per replica compared to Neo4j.\n3. Direct Integration: Unified Redis in-memory key-value and graph module integration simplified our deployment cluster.",
-    timestamp: "10:14 AM",
-    claim: MOCK_EVIDENCE_CLAIMS[0],
-  },
-];
+export function AssistantView({ conversationId }: AssistantViewProps) {
+  const router = useRouter();
+  const [activeId, setActiveId] = React.useState<string | null>(conversationId ?? null);
+  const [panelOpen, setPanelOpen] = React.useState(true);
+  const [previewCitation, setPreviewCitation] = React.useState<Citation | null>(null);
+  const [draft, setDraft] = React.useState("");
+  const scrollRef = React.useRef<HTMLDivElement>(null);
 
-export function AssistantView({ conversationId }: { conversationId?: string }) {
-  const [messages, setMessages] = React.useState<ChatMessage[]>(INITIAL_MESSAGES);
-  const [inputText, setInputText] = React.useState("");
-  const [isSynthesizing, setIsSynthesizing] = React.useState(false);
-  const [inspectedClaim, setInspectedClaim] = React.useState<EvidenceClaim | null>(MOCK_EVIDENCE_CLAIMS[0]);
-  const msgCounter = React.useRef(10);
+  const [routeId, setRouteId] = React.useState(conversationId);
+  if (conversationId !== routeId) {
+    setRouteId(conversationId);
+    if (conversationId) setActiveId(conversationId);
+  }
 
-  const handleSend = React.useCallback(
-    (textToSend?: string) => {
-      const text = textToSend || inputText;
-      if (!text.trim()) return;
+  const conversation = useConversation(activeId);
+  const createConversation = useCreateConversation();
+  const { answer, ask, stop, reset, isBusy } = useAssistantStream();
 
-      const userMsgId = `usr-${msgCounter.current++}`;
-      const userMsg: ChatMessage = {
-        id: userMsgId,
-        sender: "user",
-        text: text.trim(),
-        timestamp: "Just now",
-      };
+  const openThread = (id: string) => {
+    reset();
+    setActiveId(id);
+    router.push(`/assistant/${id}`);
+  };
 
-      setMessages((prev) => [...prev, userMsg]);
-      setInputText("");
-      setIsSynthesizing(true);
+  const startThread = async () => {
+    const created = await createConversation.mutateAsync({});
+    openThread(created.id);
+    return created.id;
+  };
 
-      // Simulate verified FalkorDB traversal & synthesis
-      setTimeout(() => {
-        const astMsgId = `ast-${msgCounter.current++}`;
-        const assistantMsg: ChatMessage = {
-          id: astMsgId,
-          sender: "assistant",
-          text: `Cross-referencing organizational knowledge for "${text}":\n\nThe FalkorDB graph corroborates that the security and compliance policy enforces strict PII scrubbing across all Slack and Confluence ingestion pipelines prior to vector indexing. Verified in the latest SOC-2 Type II audit.`,
-          timestamp: "Just now",
-          claim: MOCK_EVIDENCE_CLAIMS[1],
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-        setInspectedClaim(MOCK_EVIDENCE_CLAIMS[1]);
-        setIsSynthesizing(false);
-      }, 900);
-    },
-    [inputText]
+  const submit = async (text: string) => {
+    const question = text.trim();
+    if (!question || isBusy) return;
+
+    setDraft("");
+    let threadId = activeId;
+    if (!threadId) {
+      const created = await createConversation.mutateAsync({ title: question.slice(0, 60) });
+      threadId = created.id;
+      setActiveId(threadId);
+      // Not the router: `/assistant` and `/assistant/[id]` are different segments, and
+      // remounting would drop the answer being streamed in.
+      window.history.replaceState(null, "", `/assistant/${threadId}`);
+    }
+    await ask(threadId, question);
+  };
+
+  const storedMessages: Message[] = (conversation.data?.messages ?? []).filter(
+    (message) => message.id !== answer.messageId,
+  );
+
+  React.useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [answer.text, answer.phase, answer.claims.length, conversation.data?.messages.length]);
+
+  // The question is echoed locally until the stored thread contains it.
+  const questionIsStored = storedMessages.some(
+    (message) => message.role === "user" && message.text === answer.question,
   );
 
   return (
-    <div className="space-y-4 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Knowledge Assistant
+    <div className="grid h-[calc(100vh-11rem)] grid-cols-1 grid-rows-[minmax(0,1fr)] gap-4 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)_340px]">
+      <div className="hidden min-h-0 lg:block">
+        <ThreadList
+          activeId={activeId}
+          onSelect={openThread}
+          onNew={() => void startThread()}
+          isCreating={createConversation.isPending}
+        />
+      </div>
+
+      <section
+        aria-label="Conversation"
+        className="flex min-w-0 flex-col overflow-hidden rounded-md border border-border bg-card"
+      >
+        <header className="flex items-center justify-between gap-2 border-b border-border p-3">
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold text-foreground">
+              {conversation.data?.title ?? "AI assistant"}
             </h1>
-            <Badge variant="outline" className="font-mono text-[10px]">
-              {conversationId ? `Session ${conversationId}` : "Ground-Truth Verified"}
-            </Badge>
+            <ScopeChip
+              projectId={conversation.data?.scope?.projectId}
+              onReset={() => void startThread()}
+            />
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Conversational synthesis over verified documents, decisions, and FalkorDB knowledge graph.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-            <Link href="/graph">
-              Graph Explorer
-              <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      {/* Suggested Prompts Strip */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-        <span className="text-[11px] font-mono text-muted-foreground shrink-0">Prompts:</span>
-        {[
-          "Why was FalkorDB selected over Neo4j?",
-          "How is PII handled during Slack ingestion?",
-          "What is the status of Project Synapse?",
-        ].map((prompt, i) => (
-          <button
-            key={i}
-            onClick={() => handleSend(prompt)}
-            className="shrink-0 px-2.5 py-1 rounded border border-border bg-card hover:bg-secondary text-foreground text-[11px] transition-colors"
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="xl:hidden"
+            aria-label={panelOpen ? "Hide the evidence panel" : "Show the evidence panel"}
+            onClick={() => setPanelOpen((open) => !open)}
           >
-            {prompt}
-          </button>
-        ))}
-      </div>
+            {panelOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+          </Button>
+        </header>
 
-      {/* Chat & Evidence Split */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Chat Feed */}
-        <div className="lg:col-span-2 flex flex-col h-[580px] rounded-md border border-border bg-card">
-          {/* Messages Container */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex gap-3 text-xs leading-relaxed ${
-                  msg.sender === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                {msg.sender === "assistant" && (
-                  <div className="flex h-7 w-7 shrink-0 select-none items-center justify-center rounded bg-secondary text-primary border border-border">
-                    <BotMessageSquare className="h-4 w-4" />
-                  </div>
-                )}
-
-                <div
-                  className={`max-w-[85%] rounded-md p-3.5 space-y-2.5 ${
-                    msg.sender === "user"
-                      ? "bg-primary text-primary-foreground font-medium"
-                      : "bg-secondary/40 border border-border text-foreground"
-                  }`}
-                >
-                  <div className="whitespace-pre-line text-xs">{msg.text}</div>
-
-                  {msg.claim && (
-                    <div className="pt-2 border-t border-border/80 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {msg.claim.citations.map((c) => (
-                          <CitationChip key={c.id} citation={c} size="sm" />
-                        ))}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 text-[10px] font-mono text-muted-foreground hover:text-foreground"
-                        onClick={() => setInspectedClaim(msg.claim || null)}
-                      >
-                        Inspect Evidence
-                      </Button>
-                    </div>
-                  )}
-
-                  <div className="text-[10px] opacity-70 text-right font-mono">
-                    {msg.timestamp}
-                  </div>
-                </div>
-
-                {msg.sender === "user" && (
-                  <div className="flex h-7 w-7 shrink-0 select-none items-center justify-center rounded bg-secondary text-muted-foreground border border-border">
-                    <User className="h-4 w-4" />
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {isSynthesizing && (
-              <div className="flex gap-3 items-center text-xs text-muted-foreground p-2">
-                <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />
-                <span>Traversing FalkorDB knowledge graph &amp; verifying evidence claims...</span>
-              </div>
-            )}
-          </div>
-
-          {/* Input Bar */}
-          <div className="border-t border-border p-3 bg-secondary/20">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSend();
-              }}
-              className="flex items-center gap-2"
-            >
-              <Input
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="Ask Cerevia Assistant about architecture, decisions, or people..."
-                className="h-9 text-xs bg-background"
-                disabled={isSynthesizing}
-              />
-              <Button type="submit" size="sm" className="h-9 px-3 gap-1.5" disabled={isSynthesizing || !inputText.trim()}>
-                <Send className="h-3.5 w-3.5" />
-                <span>Ask</span>
-              </Button>
-            </form>
-          </div>
-        </div>
-
-        {/* Right Column: Evidence Panel Inspector */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
-              Ground-Truth Verification
-            </h3>
-            {inspectedClaim && (
-              <Badge variant="outline" className="font-mono text-[10px]">
-                {inspectedClaim.id}
-              </Badge>
-            )}
-          </div>
-
-          {inspectedClaim ? (
-            <EvidencePanel claim={inspectedClaim} />
+        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4">
+          {activeId && conversation.isPending ? (
+            <div className="space-y-3">
+              <Skeleton className="h-12 w-2/3 rounded-md" />
+              <Skeleton className="h-20 w-full rounded-md" />
+            </div>
+          ) : storedMessages.length === 0 && answer.phase === "idle" ? (
+            <EmptyConversation onPick={(question) => void submit(question)} />
           ) : (
-            <Card className="p-6 text-center text-xs text-muted-foreground">
-              Click &quot;Inspect Evidence&quot; on any assistant message to review the backing FalkorDB evidence path.
-            </Card>
+            storedMessages.map((message) => <StoredMessage key={message.id} message={message} />)
+          )}
+
+          {answer.phase !== "idle" && (
+            <LiveAnswer
+              answer={answer}
+              showQuestion={!questionIsStored}
+              onOpenCitation={setPreviewCitation}
+              onFollowUp={(question) => void submit(question)}
+            />
           )}
         </div>
+
+        <Composer
+          value={draft}
+          onChange={setDraft}
+          onSubmit={() => void submit(draft)}
+          onStop={stop}
+          isBusy={isBusy}
+        />
+      </section>
+
+      <div className={panelOpen ? "min-h-0" : "hidden min-h-0 xl:block"}>
+        <EvidenceGraphPanel
+          claims={answer.claims}
+          citations={answer.citations}
+          paths={answer.paths}
+          conflicts={answer.conflicts}
+          relatedEntities={answer.relatedEntities}
+          subgraph={answer.subgraph}
+          accessLimited={answer.accessLimited}
+          messageId={answer.messageId}
+          onOpenCitation={setPreviewCitation}
+        />
       </div>
+
+      <SourcePreview
+        citation={previewCitation}
+        open={Boolean(previewCitation)}
+        onOpenChange={(open) => !open && setPreviewCitation(null)}
+      />
     </div>
+  );
+}
+
+function ScopeChip({ projectId, onReset }: { projectId?: string; onReset: () => void }) {
+  if (!projectId) return null;
+  return (
+    <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground">
+      Scope: project <span className="font-mono text-foreground">{projectId}</span>
+      <button
+        type="button"
+        onClick={onReset}
+        className="ml-0.5 cursor-pointer rounded-full p-0.5 hover:bg-accent"
+        aria-label="Start an unscoped thread"
+      >
+        <X className="h-2.5 w-2.5" />
+      </button>
+    </span>
+  );
+}
+
+function EmptyConversation({ onPick }: { onPick: (question: string) => void }) {
+  const starters = [
+    "Why is our product launch delayed?",
+    "Which decision is relevant to the payments work, and why was it made?",
+    "Who knows most about our ingestion pipeline?",
+  ];
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+      <BotMessageSquare className="h-7 w-7 text-muted-foreground" aria-hidden="true" />
+      <div>
+        <h2 className="text-sm font-semibold text-foreground">Ask about this organization</h2>
+        <p className="mt-1 max-w-md text-xs text-muted-foreground">
+          Answers are assembled from your documents and the relationships between them. Every
+          statement carries the evidence behind it.
+        </p>
+      </div>
+      <ul className="flex flex-wrap justify-center gap-1.5">
+        {starters.map((starter) => (
+          <li key={starter}>
+            <button
+              type="button"
+              onClick={() => onPick(starter)}
+              className="cursor-pointer rounded-full border border-border bg-card px-3 py-1.5 text-[11px] text-foreground transition-colors hover:border-primary/50 hover:bg-accent"
+            >
+              {starter}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function StoredMessage({ message }: { message: Message }) {
+  if (message.role === "user") {
+    return (
+      <div className="flex justify-end">
+        <p className="max-w-[85%] rounded-lg rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground">
+          {message.text}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{message.text}</p>
+      <MessageFeedback messageId={message.id} />
+    </div>
+  );
+}
+
+function LiveAnswer({
+  answer,
+  showQuestion,
+  onOpenCitation,
+  onFollowUp,
+}: {
+  answer: StreamedAnswer;
+  showQuestion: boolean;
+  onOpenCitation: (citation: Citation) => void;
+  onFollowUp: (question: string) => void;
+}) {
+  const createProposal = useCreateProposal();
+  const router = useRouter();
+
+  return (
+    <div className="space-y-3">
+      {showQuestion && answer.question && (
+        <div className="flex justify-end">
+          <p className="max-w-[85%] rounded-lg rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground">
+            {answer.question}
+          </p>
+        </div>
+      )}
+
+      {answer.stage && (
+        <p className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-[11px] text-muted-foreground">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+          {STAGE_LABELS[answer.stage] ?? "Working…"}
+        </p>
+      )}
+
+      {answer.reconnectAttempt > 0 && answer.phase === "streaming" && (
+        <p className="text-[11px] text-muted-foreground">
+          Connection interrupted; reconnecting (attempt {answer.reconnectAttempt})…
+        </p>
+      )}
+
+      <div aria-live="polite" aria-atomic="false">
+        {answer.text && (
+          <AnswerText
+            text={answer.text}
+            citations={answer.citations}
+            onOpenCitation={onOpenCitation}
+          />
+        )}
+      </div>
+
+      {answer.accessLimited && <AccessLimitedNotice />}
+
+      {answer.answerStatus === "insufficient_evidence" && (
+        <InsufficientEvidence
+          known={answer.claims.filter((claim) => claim.kind === "confirmed").map((claim) => claim.text)}
+          missing={answer.claims.filter((claim) => claim.kind === "missing").map((claim) => claim.text)}
+          nextSteps={answer.followUps}
+          onNextStep={onFollowUp}
+        />
+      )}
+
+      {answer.answerStatus === "partial" && (
+        <p className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <AlertTriangle className="h-3 w-3 text-amber-500" aria-hidden="true" />
+          This answer is partial: not every part of the question could be evidenced.
+        </p>
+      )}
+
+      {answer.claims.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {answer.claims.map((claim) => (
+            <EvidenceBadge key={claim.id} kind={claim.kind} size="sm" />
+          ))}
+        </div>
+      )}
+
+      {answer.phase === "error" && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-[var(--destructive-border)] bg-[var(--destructive-subtle)] p-3"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--destructive)]" aria-hidden="true" />
+          <div>
+            <p className="text-xs font-semibold text-foreground">
+              The assistant could not finish this answer
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {answer.error ? errorMessage(answer.error) : "Try asking again."} The rest of the
+              workspace still works.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {answer.followUps.length > 0 && answer.answerStatus !== "insufficient_evidence" && (
+        <div className="space-y-1.5">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Follow-ups
+          </h3>
+          <ul className="flex flex-wrap gap-1.5">
+            {answer.followUps.map((followUp) => (
+              <li key={followUp}>
+                <button
+                  type="button"
+                  onClick={() => onFollowUp(followUp)}
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] text-foreground transition-colors hover:border-primary/50 hover:bg-accent"
+                >
+                  {followUp}
+                  <ChevronRight className="h-2.5 w-2.5" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {answer.actions.length > 0 && (
+        <div className="space-y-1.5">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Suggested actions
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
+            {answer.actions.map((action) => (
+              <Button
+                key={`${action.kind}-${action.label}`}
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={createProposal.isPending}
+                onClick={() =>
+                  createProposal.mutate(
+                    {
+                      kind: action.kind as ProposalKind,
+                      context: { messageId: answer.messageId ?? undefined },
+                    },
+                    {
+                      onSuccess: ({ proposalId }) => {
+                        toast.success("Draft proposal created.");
+                        router.push(`/actions/${proposalId}`);
+                      },
+                    },
+                  )
+                }
+              >
+                {action.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {answer.messageId && answer.phase === "complete" && (
+        <div className="flex items-center gap-2">
+          <MessageFeedback messageId={answer.messageId} />
+          {isDevTraceEnabled() && <DevTraceDrawer messageId={answer.messageId} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MessageFeedback({ messageId }: { messageId: string }) {
+  const feedback = useMessageFeedback(messageId);
+  const [sent, setSent] = React.useState<"up" | "down" | null>(null);
+
+  const send = (rating: "up" | "down") => {
+    setSent(rating);
+    feedback.mutate({ rating }, { onSuccess: () => toast.success("Thanks for the feedback.") });
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="This answer was helpful"
+        aria-pressed={sent === "up"}
+        className={sent === "up" ? "text-success" : "text-muted-foreground"}
+        onClick={() => send("up")}
+      >
+        <ThumbsUp className="h-3.5 w-3.5" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="This answer was not helpful"
+        aria-pressed={sent === "down"}
+        className={sent === "down" ? "text-[var(--destructive)]" : "text-muted-foreground"}
+        onClick={() => send("down")}
+      >
+        <ThumbsDown className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+function DevTraceDrawer({ messageId }: { messageId: string }) {
+  const [open, setOpen] = React.useState(false);
+  const trace = useRetrievalTrace(open ? messageId : null);
+
+  return (
+    <div>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 gap-1.5 text-[11px] text-muted-foreground"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <Wrench className="h-3 w-3" aria-hidden="true" />
+        {open ? "Hide trace" : "Retrieval trace"}
+      </Button>
+      {open && (
+        <div className="mt-1.5 rounded-md border border-border bg-muted/30 p-2.5 font-mono text-[10px] text-muted-foreground">
+          {trace.isPending && "Loading trace…"}
+          {trace.isError && "No trace is exposed by this deployment."}
+          {trace.data && (
+            <ul className="space-y-0.5">
+              {trace.data.tools.map((tool) => (
+                <li key={tool.name}>
+                  {tool.name}: {tool.resultsCount} results, {tool.filteredCount} filtered,{" "}
+                  {Math.round(tool.durationMs)}ms
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Composer({
+  value,
+  onChange,
+  onSubmit,
+  onStop,
+  isBusy,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  onStop: () => void;
+  isBusy: boolean;
+}) {
+  return (
+    <form
+      className="border-t border-border p-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
+      <div className="flex items-end gap-2">
+        <Textarea
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              onSubmit();
+            }
+          }}
+          placeholder="Ask about projects, decisions, people or documents…"
+          rows={2}
+          className="min-h-[56px] resize-none text-sm"
+          aria-label="Your question"
+        />
+        {isBusy ? (
+          <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={onStop}>
+            <Square className="h-3 w-3" aria-hidden="true" />
+            Stop
+          </Button>
+        ) : (
+          <Button type="submit" size="sm" className="h-9 gap-1.5 text-xs" disabled={!value.trim()}>
+            <Send className="h-3.5 w-3.5" aria-hidden="true" />
+            Ask
+          </Button>
+        )}
+      </div>
+      <p className="mt-1.5 text-[10px] text-muted-foreground">
+        Enter sends, Shift+Enter adds a line.
+      </p>
+    </form>
   );
 }
