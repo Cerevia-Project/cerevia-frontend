@@ -16,6 +16,9 @@
 /playwright-report
 /blob-report
 /.playwright
+/walkthrough/raw.webm
+/walkthrough/assets
+/walkthrough/timeline.json
 
 # next.js
 /.next/
