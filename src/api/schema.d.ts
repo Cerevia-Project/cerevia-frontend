@@ -2506,6 +2506,8 @@ export interface paths {
                         /** Format: email */
                         email: string;
                         name: string;
+                        password?: string;
+                        role?: string;
                     };
                 };
             };
