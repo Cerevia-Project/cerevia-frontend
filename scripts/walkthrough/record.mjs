@@ -134,6 +134,51 @@ class Director {
   }
 }
 
+const PIPELINE = [
+  ["search_documents", "Vector + full-text search over Chunk nodes", "db.idx.vector.queryNodes · db.idx.fulltext.queryNodes"],
+  ["search_entities · traverse_relationships", "Find the entities and walk their edges", "MATCH (n)-[r]-(m)"],
+  ["get_project_status · search_decisions", "Projects, owners, dependencies and decisions", "MATCH (p:Project)-[r]-(m) · (:Employee)-[:PRODUCED_DECISION]->(:Decision)"],
+  ["Citation guard", "Keep only citations to chunks retrieved this turn", "Confirmed claims must cite one"],
+];
+
+async function showPipeline(page) {
+  await page.evaluate((steps) => {
+    const el = document.createElement("div");
+    el.id = "wt-pipeline";
+    el.style.cssText =
+      "position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;" +
+      "background:rgba(13,22,40,.72);backdrop-filter:blur(6px);font-family:-apple-system,system-ui,sans-serif;" +
+      "opacity:0;transition:opacity .6s";
+    const rows = steps
+      .map(
+        ([tool, what, query], i) => `
+        <div style="display:flex;gap:22px;align-items:flex-start;opacity:0;transform:translateY(12px);
+          transition:all .5s ease ${0.5 + i * 0.9}s" class="wt-step">
+          <div style="flex:none;width:44px;height:44px;border-radius:12px;background:#4f6a8f;color:#fff;
+            display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px">${i + 1}</div>
+          <div><div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:22px;color:#fff;
+            font-weight:600">${tool}</div>
+            <div style="font-size:19px;color:rgba(255,255,255,.8);margin-top:4px">${what}</div>
+            <div style="font-family:ui-monospace,Menlo,monospace;font-size:15px;color:#9fb6dc;margin-top:6px">${query}</div></div>
+        </div>`,
+      )
+      .join("");
+    el.innerHTML = `<div style="width:900px;padding:44px 52px;border-radius:24px;background:rgba(20,30,52,.96);
+      border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 80px rgba(0,0,0,.45);display:flex;
+      flex-direction:column;gap:26px">
+      <div style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;color:#9fb6dc">
+        Question to cited answer, all in FalkorDB</div>${rows}</div>`;
+    document.documentElement.appendChild(el);
+    requestAnimationFrame(() => {
+      el.style.opacity = "1";
+      el.querySelectorAll(".wt-step").forEach((step) => {
+        step.style.opacity = "1";
+        step.style.transform = "none";
+      });
+    });
+  }, PIPELINE);
+}
+
 const card = (page, title) =>
   page.getByText(title, { exact: true }).first().locator("xpath=ancestor::div[contains(@class,'border')][1]");
 
@@ -156,18 +201,18 @@ async function scenes(d, page, { proposalId }) {
   await d.zoomOut(1300);
 
   // Overview
-  d.caption("One view of the organisation", "Live counts, open blockers, recent decisions and ingestion health. Demonstration data is always labelled.");
+  d.caption("One view of the organisation", "Counts, open blockers and recent decisions, read live from the FalkorDB knowledge graph.");
   await sleep(3000);
   await d.zoom(page.getByRole("link", { name: /connected sources/i }).locator("xpath=ancestor::div[contains(@class,'grid')][1]"), 1.5);
   await sleep(3000);
   await d.zoom(card(page, "Outstanding blockers"), 1.6);
-  d.caption("Blockers surface on their own", "Tasks the knowledge graph records as blocked, linked straight to the record.");
+  d.caption("Blockers surface on their own", "Tasks marked blocked in the FalkorDB graph, linked straight to the record.");
   await sleep(4000);
   await d.zoomOut();
 
   // Global search
   await d.click(page.getByRole("button", { name: /search cerevia knowledge graph/i }));
-  d.caption("Find anything", "Search people, teams, projects and decisions across the knowledge graph.");
+  d.caption("Find anything", "Entity search runs against the FalkorDB knowledge graph.");
   const palette = page.getByRole("dialog");
   await palette.waitFor();
   await d.zoom(palette, 1.45);
@@ -188,7 +233,7 @@ async function scenes(d, page, { proposalId }) {
   await sleep(4000);
   await d.zoomOut();
   await d.click(page.getByRole("tab", { name: "Dependencies" }));
-  d.caption("What the launch is waiting on", "The launch depends on the payment gateway, which is blocked on vendor sign-off.");
+  d.caption("A multi-hop path in FalkorDB", "Payments Launch DEPENDS_ON the gateway, which DEPENDS_ON vendor sign-off.");
   await sleep(2500);
   await d.zoom(page.getByRole("tabpanel").locator("canvas").first().locator("xpath=ancestor::div[contains(@class,'rounded')][1]"), 1.4);
   await sleep(4500);
@@ -198,7 +243,7 @@ async function scenes(d, page, { proposalId }) {
   await d.click(page.getByRole("link", { name: /open in the graph/i }));
   await page.waitForURL("**/graph?**");
   await d.heading("Knowledge graph explorer");
-  d.caption("Knowledge graph explorer", "A focused neighbourhood around one entity, never the whole organisation.");
+  d.caption("Knowledge graph explorer", "A focused FalkorDB neighbourhood around one entity, never the whole organisation.");
   await sleep(4500);
   const row = page.getByRole("button", { name: /integrate payment gateway/i }).first();
   await d.reveal(row);
@@ -209,7 +254,7 @@ async function scenes(d, page, { proposalId }) {
   await sleep(1000);
   const inspector = page.getByRole("complementary", { name: /details for integrate payment gateway/i });
   await d.zoom(inspector, 1.6);
-  d.caption("Entity inspector", "Properties, provenance and a link to the underlying record.");
+  d.caption("Entity inspector", "Each node's properties, and the source passage it was extracted from.");
   await sleep(4500);
   await d.zoomOut();
 
@@ -220,7 +265,7 @@ async function scenes(d, page, { proposalId }) {
   await sleep(3000);
   await d.click(page.locator('a[href="/decisions/dec_queue"]').first());
   await d.heading("Use queue A over queue B");
-  d.caption("Who decided, and why", "Owner, approver, rationale, the alternatives considered and the work it affects.");
+  d.caption("Who decided, and why", "Owner and approver are graph edges: PRODUCED_DECISION and APPROVED_BY.");
   await sleep(2500);
   await d.zoom([card(page, "Rationale"), card(page, "Accountability")], 1.45);
   await sleep(4500);
@@ -229,7 +274,7 @@ async function scenes(d, page, { proposalId }) {
   // Sources
   await d.click(sidebar("Knowledge Sources"));
   await d.heading("Knowledge sources");
-  d.caption("Knowledge sources", "Uploaded documents are extracted, chunked, embedded and mapped into the graph.");
+  d.caption("Knowledge sources", "Documents are chunked, embedded and written into FalkorDB as nodes and typed edges.");
   await sleep(3500);
   await d.click(page.getByRole("tab", { name: "Ingestion" }));
   d.caption("Ingestion monitor", "Each job's stage and outcome, updated live.");
@@ -242,11 +287,11 @@ async function scenes(d, page, { proposalId }) {
   await d.click(sidebar("AI Assistant"));
   await page.getByLabel("Your question").waitFor();
   await sleep(800);
-  d.caption("Ask in plain language", "The assistant answers from your documents and the knowledge graph.");
+  d.caption("Ask in plain language", "Every piece of evidence the assistant sees comes from a FalkorDB query.");
   await sleep(2000);
   await d.type(page.getByLabel("Your question"), "Why is the payments launch delayed?");
   await d.click(page.getByRole("button", { name: /^ask$/i }));
-  d.caption("Gathering evidence", "It searches documents and follows relationships before it answers.");
+  d.caption("Gathering evidence", "Vector and full-text search over FalkorDB chunks, then graph lookups.");
   await d.park(1180, 640);
   const conversation = page.getByRole("region", { name: "Conversation" });
   const done = conversation
@@ -258,7 +303,7 @@ async function scenes(d, page, { proposalId }) {
     throw new Error("The assistant could not answer (likely the model quota). Wait a minute and retry.");
   }
   await sleep(1200);
-  d.caption("An answer you can check", "Each claim is labelled by how it is known and linked to its source.");
+  d.caption("An answer you can check", "Confirmed, because it cites a chunk FalkorDB returned in this very turn.");
   await d.zoom(
     [
       conversation.getByText("Why is the payments launch delayed?", { exact: true }).last(),
@@ -273,12 +318,17 @@ async function scenes(d, page, { proposalId }) {
   const sheet = page.getByRole("dialog");
   await sheet.waitFor();
   await sleep(600);
-  d.caption("Straight to the source", "The exact passage, its document and version, and the text around it.");
+  d.caption("Straight to the source", "The cited Chunk node, its document and version, and the text around it.");
   await d.zoom([sheet.getByRole("heading").first(), sheet.locator("blockquote").first()], 1.6);
   await sleep(5500);
   await d.zoomOut();
   await page.keyboard.press("Escape");
   await sleep(900);
+  d.caption("How it answered", "The model never reads data directly. Each step is a query against FalkorDB.");
+  await showPipeline(page);
+  await sleep(9000);
+  await page.evaluate(() => document.getElementById("wt-pipeline")?.remove());
+  await sleep(600);
 
   // Actions
   await d.click(sidebar("Actions & Approvals"));

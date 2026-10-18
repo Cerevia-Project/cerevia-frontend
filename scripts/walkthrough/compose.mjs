@@ -98,8 +98,8 @@ async function renderAssets(dir, captions) {
 
   await shoot(backgroundPage, CANVAS, "background.png");
   await shoot(maskPage, APP, "mask.png");
-  await shoot(titleCard("Cerevia", "Organisational knowledge, with the evidence behind every answer", "Product walkthrough"), CANVAS, "intro.png");
-  await shoot(titleCard("Cerevia", "Every answer carries its evidence."), CANVAS, "outro.png");
+  await shoot(titleCard("Cerevia", "Organisational knowledge, with the evidence behind every answer", "Product walkthrough · Built on FalkorDB"), CANVAS, "intro.png");
+  await shoot(titleCard("Cerevia", "Every answer carries its evidence.", "Powered by the FalkorDB knowledge graph"), CANVAS, "outro.png");
   for (const [index, caption] of captions.entries()) {
     await shoot(captionPage(caption.title, caption.body), { width: CANVAS.width, height: CAPTION_HEIGHT }, `caption-${index}.png`, true);
   }
