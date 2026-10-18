@@ -6,7 +6,6 @@ import { sourcesApi } from "@/api/endpoints";
 import { queryKeys } from "@/api/query-keys";
 import type { IngestionJob, PageParams } from "@/api/types";
 
-/** Jobs still moving are polled; a finished job stops the timer. */
 const JOB_POLL_INTERVAL = 3_000;
 
 export function useSources(params: PageParams = {}) {
@@ -126,10 +125,7 @@ export function useLoadDemoData() {
   });
 }
 
-/* ── Uploads ───────────────────────────────────────────────────────────── */
-
 export interface UploadEntry {
-  /** Client-side id; stable across the lifetime of the row. */
   key: string;
   file: File;
   status: "pending" | "uploading" | "accepted" | "failed";
@@ -137,10 +133,6 @@ export interface UploadEntry {
   error?: string;
 }
 
-/**
- * Multi-file upload with per-file state. Client-side checks are a convenience
- * only: the server's own rejection text is what the row ends up showing.
- */
 export function useUpload(sourceId: string | null) {
   const queryClient = useQueryClient();
   const [entries, setEntries] = React.useState<UploadEntry[]>([]);
@@ -165,7 +157,6 @@ export function useUpload(sourceId: string | null) {
       for (const entry of queued) {
         update(entry.key, { status: "uploading" });
         try {
-          // One key per file, so a retried request is not ingested twice.
           const { jobId } = await sourcesApi.uploadDocument(sourceId, entry.file, entry.key);
           update(entry.key, { status: "accepted", jobId });
         } catch (error) {

@@ -25,7 +25,6 @@ import { entityHref } from "@/lib/entity-routes";
 import { formatNumber } from "@/lib/formatters";
 import type { EntityRef, Overview } from "@/api/types";
 
-/** Every metric links to the list it counts. */
 const METRICS: {
   key: keyof Pick<Overview, "sources" | "documents" | "people" | "teams" | "projects">;
   label: string;

@@ -11,24 +11,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 export interface QueryBoundaryProps<T> {
   query: UseQueryResult<T>;
   children: (data: T) => React.ReactNode;
-  /** Shown while loading. Defaults to layout-shaped skeleton rows. */
   skeleton?: React.ReactNode;
-  /** Rows the skeleton stands in for, when the default skeleton is used. */
   skeletonRows?: number;
-  /** Decides whether the loaded data is "nothing to show". */
   isEmpty?: (data: T) => boolean;
   empty?: React.ReactNode;
   errorTitle?: string;
-  /** Copy for a 404, which the API also returns when access is denied. */
   notFoundTitle?: string;
   notFoundDescription?: string;
 }
 
-/**
- * Renders the four states every API-backed view has: loading, failed,
- * forbidden/not-found, and loaded. Keeping it in one place is what stops
- * screens from inventing their own error handling.
- */
+/** Loading, failed, forbidden/not-found, empty and loaded states for one query. */
 export function QueryBoundary<T>({
   query,
   children,

@@ -1,16 +1,9 @@
-/**
- * Contract-derived types.
- *
- * Everything here is an alias into `schema.d.ts`, which is generated from
- * `contracts/openapi.yaml`. Nothing in this file is hand-written structure:
- * if the contract drops or retypes a field, the aliases break at compile time.
- */
+/** Aliases into the generated schema. Never hand-write a shape the contract defines. */
 
 import type { components, paths } from "@/api/schema";
 
 type Schemas = components["schemas"];
 
-/** JSON body of the success response (200, then 201, then 202) of an operation. */
 type JsonBody<Operation> = Operation extends { responses: infer R }
   ? R extends { 200: { content: { "application/json": infer B } } }
     ? B
@@ -21,24 +14,19 @@ type JsonBody<Operation> = Operation extends { responses: infer R }
         : never
   : never;
 
-/** Success body of `GET <Path>`. */
 type GetResult<Path extends keyof paths> = paths[Path] extends { get: infer O }
   ? JsonBody<O>
   : never;
 
-/** Success body of `POST <Path>`. */
 type PostResult<Path extends keyof paths> = paths[Path] extends { post: infer O }
   ? JsonBody<O>
   : never;
 
-/** JSON request body of `POST <Path>`. */
 type PostBody<Path extends keyof paths> = paths[Path] extends {
   post: { requestBody?: { content: { "application/json": infer B } } };
 }
   ? B
   : never;
-
-/* ── Core domain objects ───────────────────────────────────────────────── */
 
 export type EntityRef = Schemas["EntityRef"];
 export type EntityType = Schemas["EntityType"];
@@ -84,9 +72,6 @@ export type ActionProposal = Schemas["ActionProposal"];
 export type ProposalStatus = ActionProposal["status"];
 export type AuditRecord = Schemas["AuditRecord"];
 
-/* ── Response envelopes ────────────────────────────────────────────────── */
-
-/** Cursor-paginated list, as every `items`/`nextCursor` endpoint returns it. */
 export interface Page<T> {
   items: T[];
   nextCursor: string | null;
@@ -126,8 +111,6 @@ export type SourceAcl = GetResult<"/api/v1/admin/sources/{id}/access">;
 export type AclGrant = SourceAcl["grants"][number];
 export type Organization = GetResult<"/api/v1/admin/organization">;
 export type RetrievalTrace = GetResult<"/api/v1/messages/{id}/trace">;
-
-/* ── Request shapes ────────────────────────────────────────────────────── */
 
 export interface LoginRequest {
   email: string;

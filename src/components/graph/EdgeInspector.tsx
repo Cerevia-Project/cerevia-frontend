@@ -14,13 +14,11 @@ import type { GraphEdge, GraphNode } from "@/api/types";
 
 export interface EdgeInspectorProps {
   edge: GraphEdge | null;
-  /** Nodes currently on the canvas, used to name the endpoints. */
   nodes: GraphNode[];
   onClose: () => void;
   className?: string;
 }
 
-/** A relationship and the passages that justify it. */
 export function EdgeInspector({ edge, nodes, onClose, className }: EdgeInspectorProps) {
   const detail = useEdge(edge?.id ?? null);
 

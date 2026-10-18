@@ -20,7 +20,6 @@ export function usePerson(id: string) {
   });
 }
 
-/** Ranked people for a topic. Disabled until the topic is worth a request. */
 export function useExpertiseSearch(topic: string) {
   const trimmed = topic.trim();
   return useQuery({

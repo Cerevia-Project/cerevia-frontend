@@ -21,12 +21,6 @@ export interface NodeInspectorProps {
   className?: string;
 }
 
-/**
- * Properties and provenance for the selected entity.
- *
- * The summary comes from the subgraph already on screen; the full record and
- * its provenance are fetched from `GET /graph/entities/{id}`.
- */
 export function NodeInspector({ node, onClose, onExpand, className }: NodeInspectorProps) {
   const detail = useEntity(node?.id ?? null);
 

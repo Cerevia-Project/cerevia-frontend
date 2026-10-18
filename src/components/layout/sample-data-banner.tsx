@@ -4,12 +4,6 @@ import * as React from "react";
 import { FlaskConical } from "lucide-react";
 import { useOverview } from "@/features/overview/api";
 
-/**
- * Persistent notice that the workspace is showing the demonstration dataset.
- *
- * Driven by `sampleDataNotice` from `GET /overview`, so it disappears on its
- * own once real data is the only thing in the organization.
- */
 export function SampleDataBanner() {
   const { data } = useOverview();
 

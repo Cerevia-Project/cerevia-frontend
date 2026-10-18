@@ -114,7 +114,6 @@ describe("ApiError classification", () => {
 
     expect(csrf.isForbidden).toBe(true);
     expect(permission.isForbidden).toBe(true);
-    // The client distinguishes them by the detail, so only one is retried.
     expect(/csrf/i.test(csrf.detail)).toBe(true);
     expect(/csrf/i.test(permission.detail)).toBe(false);
   });

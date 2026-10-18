@@ -1,5 +1,3 @@
-/** Sources, documents, ingestion jobs, connectors and demonstration data. */
-
 import { api, API_BASE_URL } from "@/api/client";
 import type {
   Connector,
@@ -73,7 +71,6 @@ export function retryIngestionJob(id: string): Promise<RetryJobResult> {
   return api.post<RetryJobResult>(`/api/v1/ingestion/jobs/${encodeURIComponent(id)}/retry`);
 }
 
-/** SSE progress stream for a job. Polling the job remains the baseline. */
 export function ingestionEventsUrl(id: string): string {
   return `${API_BASE_URL}/api/v1/ingestion/jobs/${encodeURIComponent(id)}/events`;
 }

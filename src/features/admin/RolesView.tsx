@@ -8,12 +8,6 @@ import { AdminNav } from "@/features/admin/AdminNav";
 import { usePermission, useSession } from "@/providers/session-provider";
 import { usePermissionCatalog, useRoles } from "@/features/admin/api";
 
-/**
- * Roles and the permissions they carry.
- *
- * Roles are defined server-side; this screen reads them rather than editing
- * them, because the API exposes no role mutation.
- */
 export function RolesView() {
   const canManage = usePermission("admin:roles");
   const roles = useRoles();

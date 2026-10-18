@@ -7,7 +7,6 @@ import { ADMIN_NAV_ITEMS, isNavItemVisible } from "@/config/navigation";
 import { useSession } from "@/providers/session-provider";
 import { cn } from "@/lib/utils";
 
-/** Admin sub-navigation. Tabs the role cannot use are not rendered. */
 export function AdminNav() {
   const pathname = usePathname();
   const { can } = useSession();

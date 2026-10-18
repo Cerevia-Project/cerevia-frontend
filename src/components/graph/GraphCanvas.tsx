@@ -18,39 +18,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export type GraphLayout = "force" | "hierarchical";
 
-/** Viewport controls, driven by the controls bar. */
 export interface GraphCanvasHandle {
   zoomIn: () => void;
   zoomOut: () => void;
   fit: () => void;
-  /** PNG data URL of the current view, or null before the graph is ready. */
   exportPng: () => string | null;
   focusNode: (nodeId: string) => void;
 }
 
 export interface GraphCanvasProps {
   subgraph: Subgraph;
-  /** `colorKey` per entity type, from `GET /graph/schema`. */
   colorKeys?: Record<string, string>;
   selectedNodeId?: string | null;
   selectedEdgeId?: string | null;
-  /** Node and edge ids on a highlighted path; everything else is dimmed. */
   highlightedIds?: ReadonlySet<string>;
   layout?: GraphLayout;
   onSelectNode?: (node: GraphNode | null) => void;
   onSelectEdge?: (edge: GraphEdge | null) => void;
-  /** Double-click: expand this node's neighbourhood. */
   onExpandNode?: (node: GraphNode) => void;
   className?: string;
 }
 
-/**
- * Cytoscape adapter.
- *
- * The library is loaded on demand and never referenced outside this file, so
- * replacing it touches only this component. The canvas is hidden from
- * assistive technology: the synchronized list view is its accessible twin.
- */
+/** Cytoscape adapter. The only module that imports cytoscape. */
 export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>(
   function GraphCanvas(
     {
@@ -82,7 +71,6 @@ export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>
       [subgraph.edges],
     );
 
-    // Read through refs so a new handler never tears the graph down.
     const lookups = React.useRef({ nodeById, edgeById });
     lookups.current = { nodeById, edgeById };
     const handlers = React.useRef({ onSelectNode, onSelectEdge, onExpandNode });
@@ -105,7 +93,6 @@ export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>
       [isDark],
     );
 
-    /* Create the instance once. */
     React.useEffect(() => {
       let disposed = false;
       let instance: Core | null = null;
@@ -119,7 +106,7 @@ export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>
 
         if (disposed || !containerRef.current) return;
 
-        // Registering an extension twice throws, and React may remount us.
+        // `cytoscape.use` throws if an extension is registered twice.
         const registry = cytoscape as unknown as { __cereviaLayoutsRegistered?: boolean };
         if (!registry.__cereviaLayoutsRegistered) {
           cytoscape.use(fcose);
@@ -130,8 +117,6 @@ export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>
         const options: CytoscapeOptions = {
           container: containerRef.current,
           elements: [],
-          // Wheel sensitivity is deliberately left at the default: overriding
-          // it tunes zooming to one mouse and OS and misbehaves on every other.
           minZoom: 0.2,
           maxZoom: 2.5,
         };
@@ -171,7 +156,6 @@ export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>
       };
     }, []);
 
-    /* Keep the canvas sized to its container. */
     React.useEffect(() => {
       const container = containerRef.current;
       if (!container || !isReady || typeof ResizeObserver === "undefined") return;
@@ -183,7 +167,6 @@ export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>
       return () => observer.disconnect();
     }, [isReady]);
 
-    /* Elements and layout. */
     React.useEffect(() => {
       const cy = cyRef.current;
       if (!cy || !isReady) return;
@@ -199,7 +182,6 @@ export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>
           },
         })),
         ...subgraph.edges
-          // Cytoscape drops an edge with a missing endpoint; filter deliberately.
           .filter((edge) => nodeById.has(edge.from) && nodeById.has(edge.to))
           .map<ElementDefinition>((edge) => ({
             group: "edges",
@@ -225,8 +207,7 @@ export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>
         typeof window.matchMedia === "function" &&
         window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-      // Force layouts barely separate a handful of nodes, so their labels
-      // collide; a small neighbourhood reads better laid out on a ring.
+      // A force layout barely separates a few nodes, so their labels collide.
       const isSmall = subgraph.nodes.length <= 12;
       const layoutOptions = (
         layout === "force" && isSmall
@@ -237,7 +218,6 @@ export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>
               name: "fcose",
               quality: "default",
               randomize: subgraph.nodes.length > 40,
-              // Labels are wider than nodes; spacing has to clear the labels.
               nodeSeparation: 170,
               idealEdgeLength: 190,
               animate: !prefersReducedMotion,
@@ -245,8 +225,7 @@ export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>
             }
       ) as unknown as LayoutOptions;
 
-      // Fit once the layout settles, not while it animates, and never blow a
-      // small neighbourhood up to fill the canvas.
+      // Fit once the layout settles, without blowing a small graph up to fill the canvas.
       const run = cy.layout(layoutOptions);
       run.one("layoutstop", () => {
         cy.fit(undefined, 60);
@@ -258,7 +237,6 @@ export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>
       run.run();
     }, [subgraph, colorKeys, layout, isReady, nodeById]);
 
-    /* Style, re-applied when the theme flips. */
     React.useEffect(() => {
       const cy = cyRef.current;
       if (!cy || !isReady) return;
@@ -300,7 +278,6 @@ export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>
           },
         },
         {
-          // Historical edges stay visible, dashed and dimmed.
           selector: "edge[current = 0]",
           style: {
             "line-style": "dashed",
@@ -328,7 +305,6 @@ export const GraphCanvas = React.forwardRef<GraphCanvasHandle, GraphCanvasProps>
       cy.style(stylesheet);
     }, [isDark, isReady, subgraph]);
 
-    /* Selection and path highlighting. */
     React.useEffect(() => {
       const cy = cyRef.current;
       if (!cy || !isReady) return;

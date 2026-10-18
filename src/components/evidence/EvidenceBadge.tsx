@@ -26,10 +26,6 @@ interface KindConfig {
   borderStyle: string;
 }
 
-/**
- * Every evidence kind carries a colour, an icon and a text label. Status is
- * never conveyed by colour alone.
- */
 const KIND_CONFIG: Record<EvidenceKind, KindConfig> = {
   confirmed: {
     label: "Confirmed",
@@ -69,7 +65,6 @@ const KIND_CONFIG: Record<EvidenceKind, KindConfig> = {
   },
 };
 
-/** An evidence kind this build does not know still renders, neutrally. */
 const UNKNOWN_KIND: KindConfig = {
   label: "Unclassified",
   description: "This evidence kind is not known to this version of the interface.",

@@ -226,8 +226,6 @@ export function DecisionDetailView({ decisionId }: { decisionId: string }) {
                     <CardTitle className="text-sm font-semibold">Accountability</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 p-4 text-xs">
-                    {/* An unrecorded owner or approver is itself a finding,
-                        so it is stated rather than left blank. */}
                     <PersonField label="Owner" person={detail.owner} />
                     <PersonField label="Approver" person={detail.approver} />
                   </CardContent>

@@ -1,5 +1,3 @@
-/** Auth & session endpoints. */
-
 import { api, setCsrfToken } from "@/api/client";
 import type { LoginRequest, Session } from "@/api/types";
 

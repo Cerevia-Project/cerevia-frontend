@@ -1,5 +1,3 @@
-/** Projects, risks, decisions, people, teams, expertise and conflicts. */
-
 import { api } from "@/api/client";
 import type {
   Conflict,
@@ -21,8 +19,6 @@ import type {
   Subgraph,
   TeamDetail,
 } from "@/api/types";
-
-/* ── Projects & risks ──────────────────────────────────────────────────── */
 
 export function listProjects(params: PageParams = {}): Promise<Page<ProjectSummary>> {
   return api.get<Page<ProjectSummary>>("/api/v1/projects", { params: { ...params } });
@@ -52,8 +48,6 @@ export function listRisks(window?: string): Promise<{ items: Risk[] }> {
   return api.get<{ items: Risk[] }>("/api/v1/risks", { params: { window } });
 }
 
-/* ── Decisions ─────────────────────────────────────────────────────────── */
-
 export function listDecisions(params: DecisionListParams = {}): Promise<Page<DecisionSummary>> {
   return api.get<Page<DecisionSummary>>("/api/v1/decisions", { params: { ...params } });
 }
@@ -69,8 +63,6 @@ export function getDecisionRevisions(id: string): Promise<{ items: EntityRef[] }
 export function getDecisionTrace(id: string): Promise<DecisionTrace> {
   return api.get<DecisionTrace>(`/api/v1/decisions/${encodeURIComponent(id)}/trace`);
 }
-
-/* ── People & teams ────────────────────────────────────────────────────── */
 
 export function listPeople(params: PageParams = {}): Promise<Page<EntityRef>> {
   return api.get<Page<EntityRef>>("/api/v1/people", { params: { ...params } });
@@ -91,8 +83,6 @@ export function getTeam(id: string): Promise<TeamDetail> {
 export function searchExpertise(topic: string): Promise<ExpertiseMatches> {
   return api.get<ExpertiseMatches>("/api/v1/expertise/search", { params: { topic } });
 }
-
-/* ── Conflicts ─────────────────────────────────────────────────────────── */
 
 export function listConflicts(params: ConflictListParams = {}): Promise<Page<Conflict>> {
   return api.get<Page<Conflict>>("/api/v1/conflicts", { params: { ...params } });

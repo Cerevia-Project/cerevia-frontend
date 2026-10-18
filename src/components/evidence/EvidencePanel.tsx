@@ -9,7 +9,6 @@ import { CitationChip } from "@/components/evidence/CitationChip";
 
 export interface EvidencePanelProps extends React.HTMLAttributes<HTMLDivElement> {
   claim: Claim;
-  /** The answer's full citation list; the claim references it by id. */
   citations: Citation[];
   paths?: GraphPath[];
   onOpenPreview?: (citation: Citation) => void;
@@ -24,10 +23,6 @@ const BORDER_ACCENT: Record<string, string> = {
   missing: "border-l-slate-400",
 };
 
-/**
- * One claim with the evidence behind it. Nothing here is composed client-side:
- * the text, the kind and the citations all come from the API.
- */
 export function EvidencePanel({
   claim,
   citations,
@@ -37,8 +32,6 @@ export function EvidencePanel({
   className,
   ...props
 }: EvidencePanelProps) {
-  // Tolerant reader: a claim missing its id lists renders without evidence
-  // rather than taking the whole conversation down with it.
   const claimCitations = (claim.citationIds ?? [])
     .map((id) => citations.find((citation) => citation.id === id))
     .filter((citation): citation is Citation => Boolean(citation));
@@ -47,7 +40,6 @@ export function EvidencePanel({
     .map((id) => paths.find((path) => path.id === id))
     .filter((path): path is GraphPath => Boolean(path));
 
-  // Citation markers stay consistent with the answer body's numbering.
   const markerOf = (citation: Citation) =>
     citations.findIndex((entry) => entry.id === citation.id) + 1;
 

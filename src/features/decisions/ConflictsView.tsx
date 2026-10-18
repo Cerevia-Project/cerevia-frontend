@@ -15,12 +15,6 @@ import { usePermission } from "@/providers/session-provider";
 import { formatDate, humanize } from "@/lib/formatters";
 import type { Conflict } from "@/api/types";
 
-/**
- * Conflicting records, side by side.
- *
- * Neither side is styled as the winner: the API does not rank them, and the
- * UI will not invent an order. Reviewer controls appear only with permission.
- */
 export function ConflictsView() {
   const query = useConflicts();
 

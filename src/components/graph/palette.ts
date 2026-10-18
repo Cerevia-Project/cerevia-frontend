@@ -1,16 +1,5 @@
-/**
- * Graph colours.
- *
- * `GET /graph/schema` gives each entity type a `colorKey`, so the palette is
- * keyed by that rather than by a type list hard-coded here. A key the palette
- * does not know is assigned a slot deterministically, so an entity type added
- * by the backend still renders consistently.
- */
-
 export interface GraphColor {
-  /** Node fill and edge colour. */
   base: string;
-  /** Label colour against the canvas background. */
   label: string;
 }
 
@@ -50,7 +39,6 @@ const DARK: Record<string, GraphColor> = {
   action_item: { base: "#A2BE68", label: "#c6d79e" },
 };
 
-/** Slots used for colour keys the palette has no entry for. */
 const FALLBACK_LIGHT: GraphColor[] = [
   { base: "#4A7298", label: "#2d4760" },
   { base: "#3A8275", label: "#1f4f46" },
@@ -67,6 +55,7 @@ const FALLBACK_DARK: GraphColor[] = [
   { base: "#9B8BC4", label: "#c4b9e0" },
 ];
 
+// Unknown colour keys get a deterministic slot, so new entity types render consistently.
 function slotFor(key: string, slots: number): number {
   let hash = 0;
   for (let index = 0; index < key.length; index += 1) {
@@ -84,7 +73,6 @@ export function graphColor(colorKey: string, isDark: boolean): GraphColor {
   return fallbacks[slotFor(colorKey, fallbacks.length)];
 }
 
-/** Neutral colours for canvas chrome, matching the design tokens. */
 export function graphChrome(isDark: boolean) {
   return {
     edge: isDark ? "#4b5059" : "#c8ccd2",

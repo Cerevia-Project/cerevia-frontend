@@ -6,7 +6,6 @@ import { queryKeys } from "@/api/query-keys";
 import type { NeighborsParams, Subgraph } from "@/api/types";
 import { mergeSubgraphs } from "@/features/graph/subgraph";
 
-/** Entity/edge display metadata. The UI follows the backend's schema. */
 export function useGraphSchema() {
   return useQuery({
     queryKey: queryKeys.graph.schema,
@@ -40,13 +39,7 @@ export function useNeighbors(id: string | null, params: NeighborsParams = {}) {
   });
 }
 
-/**
- * Neighbourhoods for several entities at once, merged into one subgraph.
- *
- * `useQueries` keeps the hook count stable as the expansion list grows, and
- * `combine` memoizes the merge so the canvas is not handed a new subgraph -
- * and made to re-run its layout - on every render.
- */
+/** `combine` memoizes the merge, so the canvas isn't re-laid out on every render. */
 export function useNeighborsBatch(ids: string[], params: NeighborsParams = {}): Subgraph {
   return useQueries({
     queries: ids.map((id) => ({

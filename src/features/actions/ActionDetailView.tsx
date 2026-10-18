@@ -31,7 +31,6 @@ import { PROPOSAL_STATUS_STYLES } from "@/features/actions/ActionsView";
 import { formatDateTime, humanize } from "@/lib/formatters";
 import type { ActionProposal } from "@/api/types";
 
-/** The lifecycle the contract defines, shown as a timeline. */
 const LIFECYCLE = ["draft", "pending_approval", "approved", "executing", "executed"] as const;
 
 export function ActionDetailView({ proposalId }: { proposalId: string }) {
@@ -66,8 +65,6 @@ function ProposalWorkspace({ proposal }: { proposal: ActionProposal }) {
   const isDraft = proposal.status === "draft" || proposal.status === "pending_approval";
   const isDirty = content !== proposal.content;
 
-  // A saved draft replaces the editor's copy; adjusting during render avoids
-  // a second pass where the textarea still shows the stale text.
   const [syncedContent, setSyncedContent] = React.useState(proposal.content);
   if (proposal.content !== syncedContent) {
     setSyncedContent(proposal.content);
@@ -205,7 +202,6 @@ function ProposalWorkspace({ proposal }: { proposal: ActionProposal }) {
 }
 
 function Lifecycle({ status }: { status: ActionProposal["status"] }) {
-  // Rejected and failed are terminal states outside the happy path.
   if (status === "rejected" || status === "failed") {
     return (
       <p className="rounded-md border border-border bg-muted/40 p-2.5 text-xs text-muted-foreground">
@@ -240,10 +236,6 @@ function Lifecycle({ status }: { status: ActionProposal["status"] }) {
   );
 }
 
-/**
- * Approval requires an explicit confirmation, and states exactly what will
- * happen, so nobody approves by reflex.
- */
 function ApprovalDialog({ proposal }: { proposal: ActionProposal }) {
   const [open, setOpen] = React.useState(false);
   const [confirmation, setConfirmation] = React.useState("");
@@ -359,11 +351,8 @@ function RejectDialog({ proposal }: { proposal: ActionProposal }) {
   );
 }
 
-/** Audit entries for this proposal. Hidden when the role cannot read audit. */
 function AuditTimeline({ proposalId }: { proposalId: string }) {
   const canReadAudit = usePermission("audit:read");
-  // The query lives in a child so it is never issued for a role the server
-  // would refuse it to.
   if (!canReadAudit) return null;
   return <AuditEntries proposalId={proposalId} />;
 }

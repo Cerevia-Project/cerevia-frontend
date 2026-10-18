@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseSseStream, type SseMessage } from "@/api/sse";
 
-/** Feeds the parser a fixed set of byte chunks, as the network would. */
 function streamOf(chunks: string[]): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   return new ReadableStream({
@@ -80,7 +79,6 @@ describe("parseSseStream", () => {
   it("does not drop later frames when one is malformed", async () => {
     const messages = await collect(["garbage-without-a-field\n\n", 'data: {"type":"done"}\n\n']);
 
-    // The malformed frame carries no data field, so it yields nothing.
     expect(messages).toHaveLength(1);
     expect(messages[0].data).toBe('{"type":"done"}');
   });

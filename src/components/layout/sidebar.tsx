@@ -68,7 +68,6 @@ export function Sidebar({
   const pathname = usePathname();
   const { can } = useSession();
 
-  // An item the session has no permission for is not shown at all.
   const visibleItems = NAVIGATION_ITEMS.filter((item) => isNavItemVisible(item, can));
   const itemsIn = (section: NavItem["section"]) =>
     visibleItems.filter((item) => item.section === section);

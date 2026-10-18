@@ -1,5 +1,3 @@
-/** Overview dashboard endpoint. */
-
 import { api } from "@/api/client";
 import type { Overview } from "@/api/types";
 

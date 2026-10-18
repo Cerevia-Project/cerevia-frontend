@@ -1,17 +1,9 @@
-/**
- * Left navigation.
- *
- * `permissions` hides an item the server would refuse anyway. This is a hint,
- * not a security boundary: the server remains the authority, and reaching a
- * route directly still renders a clear access state.
- */
-
 export interface NavItem {
   title: string;
   href: string;
   icon: string;
   section: "workspace" | "intelligence" | "management" | "system";
-  /** Shown when the session holds at least one of these. Empty = always. */
+  /** Shown when the session holds any of these; the server still enforces them. */
   permissions?: string[];
   exact?: boolean;
 }
@@ -83,7 +75,6 @@ export const NAV_SECTION_TITLES: Record<NavItem["section"], string> = {
   system: "Design foundation",
 };
 
-/** Admin sub-navigation, each tab gated on its own permission. */
 export const ADMIN_NAV_ITEMS: NavItem[] = [
   {
     title: "Users",

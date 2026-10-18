@@ -1,11 +1,3 @@
-/**
- * Parsing of inline citation markers in assistant answers.
- *
- * The model writes markers like `[1]` or `[1, 2]` into its prose. Splitting
- * them out is what lets the UI render chips without ever treating the answer
- * text as markup.
- */
-
 const MARKER = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
 
 export type AnswerPart =

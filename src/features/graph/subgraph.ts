@@ -1,10 +1,7 @@
-/** Subgraph composition helpers, shared by the explorer and its hooks. */
-
 import type { GraphEdge, GraphNode, Subgraph } from "@/api/types";
 
 export const EMPTY_SUBGRAPH: Subgraph = { nodes: [], edges: [], truncated: false };
 
-/** Union of several neighbourhoods, de-duplicated by id. */
 export function mergeSubgraphs(parts: (Subgraph | undefined)[]): Subgraph {
   const nodes = new Map<string, GraphNode>();
   const edges = new Map<string, GraphEdge>();
@@ -21,10 +18,6 @@ export function mergeSubgraphs(parts: (Subgraph | undefined)[]): Subgraph {
   return { nodes: [...nodes.values()], edges: [...edges.values()], truncated };
 }
 
-/**
- * Entity-type and historical filters applied over what the API returned.
- * Edge-type filtering is pushed to the API as a query parameter instead.
- */
 export function applyGraphFilters(
   subgraph: Subgraph,
   entityTypes: string[],

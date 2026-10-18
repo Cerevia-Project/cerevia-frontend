@@ -1,5 +1,3 @@
-/** Administration: users, roles, permissions, source ACLs, org and audit. */
-
 import { api } from "@/api/client";
 import type {
   AclGrant,
@@ -42,7 +40,6 @@ export function getOrganization(): Promise<Organization> {
   return api.get<Organization>("/api/v1/admin/organization");
 }
 
-/** Admin audit view. `listAuditRecords` is the non-admin auditor view. */
 export function listAdminAudit(params: AuditListParams = {}): Promise<Page<AuditRecord>> {
   return api.get<Page<AuditRecord>>("/api/v1/admin/audit", { params: { ...params } });
 }

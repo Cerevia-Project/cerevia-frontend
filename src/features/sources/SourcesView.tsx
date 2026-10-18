@@ -56,7 +56,6 @@ import {
 } from "@/features/sources/api";
 import type { IngestionJob, Source, SourceState } from "@/api/types";
 
-/** Client-side convenience checks only; the server is the authority. */
 const ACCEPTED_EXTENSIONS = [".pdf", ".md", ".txt", ".docx", ".html"];
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
@@ -83,7 +82,6 @@ export function SourcesView() {
   const loadDemo = useLoadDemoData();
 
   const [chosenSourceId, setChosenSourceId] = React.useState<string | null>(null);
-  // Until the user picks one, the upload target is simply the first source.
   const selectedSourceId = chosenSourceId ?? sources.data?.items[0]?.id ?? null;
 
   return (
@@ -188,8 +186,6 @@ export function SourcesView() {
     </div>
   );
 }
-
-/* ── Sources ───────────────────────────────────────────────────────────── */
 
 function SourceTable({ sources }: { sources: Source[] }) {
   return (
@@ -300,8 +296,6 @@ function CreateSourceDialog() {
     </>
   );
 }
-
-/* ── Upload ────────────────────────────────────────────────────────────── */
 
 function UploadPanel({
   sources,
@@ -460,8 +454,6 @@ function UploadPanel({
   );
 }
 
-/* ── Ingestion jobs ────────────────────────────────────────────────────── */
-
 const JOB_STATUS_STYLES: Record<string, string> = {
   queued: "text-muted-foreground",
   running: "text-primary border-primary/30 bg-primary/5",
@@ -529,10 +521,7 @@ function JobTable({ jobs }: { jobs: IngestionJob[] }) {
   );
 }
 
-/* ── Connectors ────────────────────────────────────────────────────────── */
-
 function ConnectorCatalog({ query }: { query: ReturnType<typeof useConnectors> }) {
-  // The catalog endpoint is optional; a 404 means this deployment has none.
   if (query.isError) {
     return (
       <EmptyState

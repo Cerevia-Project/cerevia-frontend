@@ -11,12 +11,6 @@ import { CitationChip } from "@/components/evidence/CitationChip";
 import { usePerson } from "@/features/people/api";
 import { entityHref, graphHref } from "@/lib/entity-routes";
 
-/**
- * A person's profile.
- *
- * Only fields the API returned are rendered: an omitted field is left out
- * rather than shown as a blank, so the page never implies missing data.
- */
 export function PersonDetailView({ personId }: { personId: string }) {
   const query = usePerson(personId);
 

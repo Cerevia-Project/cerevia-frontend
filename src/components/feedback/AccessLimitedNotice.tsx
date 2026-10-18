@@ -4,12 +4,7 @@ import * as React from "react";
 import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/**
- * Neutral notice that some material was out of reach for this answer.
- *
- * It deliberately says nothing about what was withheld - naming it would leak
- * the very thing the permission check is protecting.
- */
+/** Says nothing about what was withheld; naming it would leak it. */
 export function AccessLimitedNotice({
   className,
   ...props

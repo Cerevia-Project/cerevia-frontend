@@ -23,13 +23,6 @@ export interface GraphListViewProps {
   onExpandNode?: (node: GraphNode) => void;
 }
 
-/**
- * The accessible equivalent of the canvas.
- *
- * A canvas graph cannot be read by a screen reader or driven from the
- * keyboard, so everything it shows is also a table here: rows are focusable,
- * Enter selects and `e` expands.
- */
 export function GraphListView({
   subgraph,
   selectedNodeId,

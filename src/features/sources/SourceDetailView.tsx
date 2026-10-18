@@ -13,7 +13,6 @@ import { useIngestionJob, useRetryIngestionJob } from "@/features/sources/api";
 import { formatDateTime, formatPercent, humanize } from "@/lib/formatters";
 import type { IngestionJob } from "@/api/types";
 
-/** The pipeline the backend reports through `stage`. */
 const STAGES = ["validating", "extracting", "embedding", "graphing"] as const;
 
 export function SourceDetailView({ jobId }: { jobId: string }) {
@@ -142,10 +141,6 @@ function StatusBadge({ job }: { job: IngestionJob }) {
   );
 }
 
-/**
- * Stage list with the reported stage marked current. A stage the backend
- * reports but this build does not list is appended rather than hidden.
- */
 function StageProgress({ job }: { job: IngestionJob }) {
   const stages: string[] = STAGES.includes(job.stage as (typeof STAGES)[number])
     ? [...STAGES]

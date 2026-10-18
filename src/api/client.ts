@@ -1,17 +1,8 @@
-/**
- * The single HTTP entry point to the Cerevia API.
- *
- * Every request in the app goes through `request()`: no component calls
- * `fetch` directly. It owns the base URL, the session cookie, the CSRF
- * header and the translation of failures into `ApiError`.
- */
+/** Single HTTP entry point: base URL, session cookie, CSRF header and error mapping. */
 
 import { ApiError, ERROR_CODES, networkError, toApiError } from "@/api/errors";
 
-/**
- * Origin of the API, without the `/api/v1` prefix - endpoint paths carry it,
- * and so does the `streamUrl` the server hands back for assistant answers.
- */
+// Origin only: endpoint paths and the server's `streamUrl` carry `/api/v1`.
 export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001"
 ).replace(/\/$/, "");
@@ -22,19 +13,14 @@ export type QueryParams = Record<string, QueryValue | QueryValue[]>;
 export interface RequestOptions extends Omit<RequestInit, "body" | "method"> {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   params?: QueryParams;
-  /** JSON-serialized automatically; pass `FormData` to send multipart. */
   body?: unknown;
-  /** Deduplicates retried mutations server-side (uploads, message sends). */
   idempotencyKey?: string;
 }
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
-/* ── CSRF token ────────────────────────────────────────────────────────── */
-
 let csrfToken: string | null = null;
 
-/** Called by the session provider whenever a session payload arrives. */
 export function setCsrfToken(token: string | null): void {
   csrfToken = token;
 }
@@ -53,24 +39,16 @@ async function refreshCsrfToken(): Promise<string | null> {
   }
 }
 
-/* ── Session expiry ────────────────────────────────────────────────────── */
-
 type UnauthenticatedHandler = (error: ApiError) => void;
 
 let onUnauthenticated: UnauthenticatedHandler | null = null;
 
-/**
- * Registers the global 401 handler (redirect to login preserving the return
- * path). Returns an unsubscribe function.
- */
 export function setUnauthenticatedHandler(handler: UnauthenticatedHandler | null): () => void {
   onUnauthenticated = handler;
   return () => {
     if (onUnauthenticated === handler) onUnauthenticated = null;
   };
 }
-
-/* ── Request ───────────────────────────────────────────────────────────── */
 
 export function buildUrl(path: string, params?: QueryParams): string {
   const url = new URL(path.startsWith("http") ? path : `${API_BASE_URL}${path}`);
@@ -113,9 +91,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     throw networkError(cause);
   }
 
-  // The server answers both a missing CSRF token and a missing permission
-  // with 403, so the body decides. Retrying a permission denial would cost a
-  // pointless round trip and tell the user nothing new.
+  // A 403 is either a stale CSRF token or a missing permission; only the former is retried.
   if (response.status === 403 && !SAFE_METHODS.has(method)) {
     const error = await toApiError(response);
     const isCsrfFailure = !sentToken || /csrf/i.test(error.detail) || /csrf/i.test(error.title);

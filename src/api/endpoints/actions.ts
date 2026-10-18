@@ -1,5 +1,3 @@
-/** Action proposals and approvals. */
-
 import { api } from "@/api/client";
 import type {
   ActionProposal,

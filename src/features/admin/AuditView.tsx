@@ -18,7 +18,6 @@ import { usePermission } from "@/providers/session-provider";
 import { useAdminAudit } from "@/features/admin/api";
 import { formatDateTime, humanize } from "@/lib/formatters";
 
-/** Searchable audit log: who did what, to which resource, and when. */
 export function AuditView() {
   const canRead = usePermission("admin:audit");
   const [actor, setActor] = React.useState("");
@@ -32,7 +31,6 @@ export function AuditView() {
     to?: string;
   }>({});
 
-  // Typing should not fire a request per keystroke.
   React.useEffect(() => {
     const timer = setTimeout(
       () =>

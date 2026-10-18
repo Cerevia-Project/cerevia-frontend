@@ -1,14 +1,6 @@
 import type { FullConfig } from "@playwright/test";
 
-/**
- * Confirms the server under test is actually this app.
- *
- * Playwright's `reuseExistingServer` trusts whatever answers on the port. A
- * stray service there (the FalkorDB Browser publishes on 3000 by default)
- * returns 200 for every path, so the whole suite will run against the wrong
- * application and fail in ways that look like app bugs. Failing here instead
- * makes the real cause obvious.
- */
+/** Fails fast when another app (such as the FalkorDB Browser) holds the port. */
 export default async function globalSetup(config: FullConfig): Promise<void> {
   const baseURL = config.projects[0]?.use?.baseURL;
   if (!baseURL) return;

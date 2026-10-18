@@ -10,7 +10,6 @@ export interface EvidenceConfig {
   borderClass: string;
 }
 
-/** Documentation copy for the five `EvidenceKind` values in the contract. */
 export const EVIDENCE_KIND_CONFIG: Record<EvidenceKind, EvidenceConfig> = {
   confirmed: {
     label: "Confirmed",
@@ -67,10 +66,6 @@ export interface EntityConfig {
   badgeClass: string;
 }
 
-/**
- * Reference copy for the contract's entity types. The rendering map lives in
- * `EntityBadge`; this is documentation for the design-system showcase.
- */
 export const ENTITY_TYPES_CONFIG: Record<EntityType, EntityConfig> = {
   employee: {
     label: "Person",

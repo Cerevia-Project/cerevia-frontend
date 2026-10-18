@@ -17,7 +17,6 @@ interface SessionContextValue {
   status: SessionStatus;
   permissions: ReadonlySet<string>;
   roles: readonly string[];
-  /** Server-side authority is the server's; this only hides what it would refuse. */
   can: (permission: string) => boolean;
   login: (credentials: LoginRequest) => Promise<Session>;
   logout: () => Promise<void>;
@@ -31,9 +30,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // `null` is written on a 401 and means "resolved, and there is no session".
-  // `undefined` means the bootstrap has not answered yet. Collapsing the two
-  // would leave a guarded route spinning instead of redirecting to login.
+  // `null` means resolved with no session (written on 401); `undefined` means still loading.
   const query = useQuery<Session | null>({
     queryKey: queryKeys.session,
     queryFn: authApi.getSession,
@@ -41,12 +38,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     staleTime: 5 * 60_000,
   });
 
-  // Session expiry anywhere in the app lands on login with the return path
-  // kept. The path is read from the browser at the moment it happens rather
-  // than through `usePathname`, which would make every route dynamic.
   React.useEffect(() => {
     return setUnauthenticatedHandler(() => {
       queryClient.setQueryData(queryKeys.session, null);
+      // Read from `window`, not `usePathname`, which would make every route dynamic.
       const current = `${window.location.pathname}${window.location.search}`;
       if (current.startsWith(LOGIN_PATH)) return;
       router.replace(`${LOGIN_PATH}?next=${encodeURIComponent(current)}`);
@@ -73,8 +68,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const value = React.useMemo<SessionContextValue>(() => {
     const permissions = new Set(session?.permissions ?? []);
-    // Anything other than a live session, once the bootstrap has answered,
-    // is unauthenticated - including a failure to reach the API at all.
     const resolved = query.data !== undefined || query.isError;
 
     return {
@@ -101,7 +94,6 @@ export function useSession(): SessionContextValue {
   return context;
 }
 
-/** True when the current session carries every permission listed. */
 export function usePermission(...permissions: string[]): boolean {
   const { can } = useSession();
   return permissions.every(can);

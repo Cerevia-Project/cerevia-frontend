@@ -20,7 +20,6 @@ export function useConflict(id: string) {
   });
 }
 
-/** Reviewer controls. Gated on `conflicts:resolve` by the server. */
 export function useReviewConflict(id: string) {
   const queryClient = useQueryClient();
   return useMutation({

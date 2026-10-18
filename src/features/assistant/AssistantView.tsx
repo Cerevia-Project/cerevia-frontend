@@ -43,10 +43,6 @@ export interface AssistantViewProps {
   conversationId?: string;
 }
 
-/**
- * The assistant workspace: threads on the left, the conversation in the
- * middle, evidence and reasoning on the right.
- */
 export function AssistantView({ conversationId }: AssistantViewProps) {
   const router = useRouter();
   const [activeId, setActiveId] = React.useState<string | null>(conversationId ?? null);
@@ -55,8 +51,6 @@ export function AssistantView({ conversationId }: AssistantViewProps) {
   const [draft, setDraft] = React.useState("");
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
-  // Navigating to another thread's URL switches the active thread. This is a
-  // derivation of the route, so it is adjusted during render.
   const [routeId, setRouteId] = React.useState(conversationId);
   if (conversationId !== routeId) {
     setRouteId(conversationId);
@@ -86,30 +80,25 @@ export function AssistantView({ conversationId }: AssistantViewProps) {
     setDraft("");
     let threadId = activeId;
     if (!threadId) {
-      // The first question creates its own thread. The address bar is updated
-      // directly rather than through the router: `/assistant` and
-      // `/assistant/[id]` are different route segments, so navigating here
-      // would unmount this view and discard the answer streaming into it.
       const created = await createConversation.mutateAsync({ title: question.slice(0, 60) });
       threadId = created.id;
       setActiveId(threadId);
+      // Not the router: `/assistant` and `/assistant/[id]` are different segments, and
+      // remounting would drop the answer being streamed in.
       window.history.replaceState(null, "", `/assistant/${threadId}`);
     }
     await ask(threadId, question);
   };
 
-  // Messages already stored, minus the assistant message currently streaming.
   const storedMessages: Message[] = (conversation.data?.messages ?? []).filter(
     (message) => message.id !== answer.messageId,
   );
 
-  // The question is echoed locally so it appears before the server has stored
-  // it. Once the stored thread contains it, the echo would be a duplicate.
-  // Keep the newest content in view as the answer streams in.
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [answer.text, answer.phase, answer.claims.length, conversation.data?.messages.length]);
 
+  // The question is echoed locally until the stored thread contains it.
   const questionIsStored = storedMessages.some(
     (message) => message.role === "user" && message.text === answer.question,
   );
@@ -203,8 +192,6 @@ export function AssistantView({ conversationId }: AssistantViewProps) {
     </div>
   );
 }
-
-/* ── Conversation pieces ───────────────────────────────────────────────── */
 
 function ScopeChip({ projectId, onReset }: { projectId?: string; onReset: () => void }) {
   if (!projectId) return null;
@@ -313,7 +300,6 @@ function LiveAnswer({
         </p>
       )}
 
-      {/* Streamed text is announced politely rather than on every delta. */}
       <div aria-live="polite" aria-atomic="false">
         {answer.text && (
           <AnswerText
@@ -470,7 +456,6 @@ function MessageFeedback({ messageId }: { messageId: string }) {
   );
 }
 
-/** Retrieval trace, available in development builds only. */
 function DevTraceDrawer({ messageId }: { messageId: string }) {
   const [open, setOpen] = React.useState(false);
   const trace = useRetrievalTrace(open ? messageId : null);

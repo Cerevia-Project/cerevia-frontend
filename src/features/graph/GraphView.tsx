@@ -24,13 +24,6 @@ import { errorMessage } from "@/api/errors";
 import { applyGraphFilters, mergeSubgraphs } from "@/features/graph/subgraph";
 import type { GraphEdge, GraphNode } from "@/api/types";
 
-/**
- * Focused graph exploration.
- *
- * The explorer never renders the whole organization: it starts from one
- * entity and expands outwards on request. Selection, filters and the focus
- * entity all live in the URL, so any view can be shared as a link.
- */
 export function GraphView() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -54,7 +47,6 @@ export function GraphView() {
   const [showHistorical, setShowHistorical] = React.useState(true);
   const [selectedNode, setSelectedNode] = React.useState<GraphNode | null>(null);
   const [selectedEdge, setSelectedEdge] = React.useState<GraphEdge | null>(null);
-  /** Nodes the user expanded, merged into the focus neighbourhood. */
   const [expandedIds, setExpandedIds] = React.useState<string[]>([]);
 
   const canvasRef = React.useRef<GraphCanvasHandle>(null);
@@ -72,7 +64,6 @@ export function GraphView() {
     edgeTypes: edgeTypeFilter.length > 0 ? edgeTypeFilter : undefined,
   });
 
-  // Each expansion is its own request; the results are merged below.
   const expansions = useNeighborsBatch(expandedIds, {
     depth,
     limit: DEFAULT_GRAPH_LIMIT,
@@ -99,8 +90,6 @@ export function GraphView() {
 
   const overNodeCap = filtered.nodes.length > MAX_GRAPH_NODES;
 
-  // Focusing a different entity is a navigation, so it goes into history and
-  // the browser's back button walks back through the exploration.
   const focusEntity = (id: string) => {
     setExpandedIds([]);
     setSelectedNode(null);
@@ -110,8 +99,6 @@ export function GraphView() {
     router.push(`/graph?${params.toString()}`);
   };
 
-  // Changing depth re-scopes the same view, so it replaces rather than
-  // filling history with filter adjustments.
   const setDepth = (next: number) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("depth", String(next));

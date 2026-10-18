@@ -19,12 +19,10 @@ function LoginForm() {
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<unknown>(null);
 
-  // Where the session expired, so the user lands back where they left off.
   const returnPath = searchParams.get("next") ?? "/overview";
 
-  // False during server rendering and until hydration completes. The submit
-  // button stays disabled until then, so a click can never fall through to a
-  // native form submission - which would put the password in the URL.
+  // Submit stays disabled until hydration, so a click can't fall through to a
+  // native GET that would put the password in the URL.
   const isInteractive = React.useSyncExternalStore(
     () => () => {},
     () => true,

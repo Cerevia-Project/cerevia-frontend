@@ -1,17 +1,10 @@
-/**
- * Error mapping for the Cerevia API.
- *
- * The backend returns RFC 9457 problem details (`components/schemas/Error` in
- * the contract). Everything the UI shows about a failure is derived here, so
- * screens never have to interpret a status code themselves.
- */
+/** Maps RFC 9457 problem details from the API to `ApiError` and UI copy. */
 
 import type { components } from "@/api/schema";
 
 export type ProblemDetails = components["schemas"]["Error"];
 export type FieldError = NonNullable<ProblemDetails["fieldErrors"]>[number];
 
-/** Codes the UI branches on. Any other code falls through to the generic path. */
 export const ERROR_CODES = {
   unauthenticated: "UNAUTHENTICATED",
   forbidden: "FORBIDDEN",
@@ -62,16 +55,11 @@ export class ApiError extends Error {
     return this.status === 404;
   }
 
-  /** Retrying the same request may succeed (transport or transient server fault). */
   get isRetryable(): boolean {
     return this.status === 0 || this.status === 429 || this.status >= 500;
   }
 }
 
-/**
- * Build an ApiError from a non-2xx response. Falls back to a status-derived
- * message when the body is not problem details (proxies, gateways, HTML errors).
- */
 export async function toApiError(response: Response): Promise<ApiError> {
   let body: unknown;
   try {
@@ -135,7 +123,6 @@ function codeForStatus(status: number): string {
   }
 }
 
-/** Human copy for codes the server did not describe itself. */
 function messageForCode(code: string, status: number): string {
   switch (code) {
     case ERROR_CODES.unauthenticated:
@@ -161,19 +148,16 @@ function messageForCode(code: string, status: number): string {
   }
 }
 
-/** Short message for toasts and inline error states. */
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.detail;
   if (error instanceof Error) return error.message;
   return "An unexpected error occurred.";
 }
 
-/** `requestId` for the expandable "Details" area shown to support. */
 export function errorRequestId(error: unknown): string | undefined {
   return error instanceof ApiError ? error.requestId : undefined;
 }
 
-/** Field-level messages keyed by field name, for React Hook Form. */
 export function fieldErrorMap(error: unknown): Record<string, string> {
   if (!(error instanceof ApiError)) return {};
   return Object.fromEntries(error.fieldErrors.map((f) => [f.field, f.message]));

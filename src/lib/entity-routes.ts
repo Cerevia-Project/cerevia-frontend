@@ -1,10 +1,3 @@
-/**
- * Where an entity lives in the UI.
- *
- * Types with a dedicated screen go there; everything else opens focused in the
- * graph explorer, which can render any entity type the backend knows.
- */
-
 import type { EntityType } from "@/api/types";
 
 const DEDICATED_ROUTE: Partial<Record<EntityType, (id: string) => string>> = {
@@ -19,7 +12,6 @@ export function entityHref(type: EntityType | string, id: string): string {
   return dedicated ? dedicated(id) : graphHref({ entity: id });
 }
 
-/** Deep link into the graph explorer. Filters live in the URL, so links share. */
 export function graphHref(params: {
   entity?: string;
   path?: string;

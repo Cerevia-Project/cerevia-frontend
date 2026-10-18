@@ -94,10 +94,6 @@ export function PeopleView() {
   );
 }
 
-/**
- * Ranked people for a topic. The ranking and the evidence both come from the
- * API; nothing about a person is inferred here.
- */
 function ExpertiseSearch() {
   const [topic, setTopic] = React.useState("");
   const [debounced, setDebounced] = React.useState("");

@@ -24,13 +24,11 @@ import type { EntityType } from "@/api/types";
 import { humanize } from "@/lib/formatters";
 
 export interface EntityBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  /** Contract entity type. Unknown values render with a neutral fallback. */
   type: EntityType | string;
   label?: string;
   subtitle?: string;
   size?: "sm" | "default" | "lg";
   clickable?: boolean;
-  /** Show only the icon, with the type as its accessible name. */
   iconOnly?: boolean;
 }
 
@@ -40,11 +38,6 @@ interface TypeConfig {
   styles: string;
 }
 
-/**
- * Icon and colour per entity type. `GET /graph/schema` carries the backend's
- * own labels and colour keys; this map is the local rendering of them, and
- * anything it does not know still renders rather than crashing.
- */
 const TYPE_CONFIG: Record<EntityType, TypeConfig> = {
   employee: {
     label: "Person",

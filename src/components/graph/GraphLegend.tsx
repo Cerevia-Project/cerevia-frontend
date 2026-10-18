@@ -5,7 +5,6 @@ import { graphColor } from "@/components/graph/palette";
 import { useTheme } from "next-themes";
 import type { EntityTypeMeta } from "@/api/types";
 
-/** Entity-type key for the canvas, driven by `GET /graph/schema`. */
 export function GraphLegend({ entityTypes }: { entityTypes: EntityTypeMeta[] }) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";

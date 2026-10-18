@@ -1,13 +1,4 @@
-/**
- * Contract fixtures.
- *
- * These JSON files are copied from `packages/contracts/fixtures` in the
- * backend repository by `npm run contracts:sync`. They are the same payloads
- * the contract mock server returns, so the design-system showcase and tests
- * exercise exactly the shapes the API produces. They are never used by the
- * application itself - every screen reads the API.
- */
-
+/** Contract fixtures (synced by `npm run contracts:sync`) for the showcase and tests. */
 import accessLimited from "./fixtures/answer.access-limited.json";
 import insufficientEvidence from "./fixtures/answer.insufficient-evidence.json";
 import launchDelay from "./fixtures/answer.launch-delay.json";

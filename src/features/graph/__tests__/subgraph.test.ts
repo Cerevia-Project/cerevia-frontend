@@ -63,7 +63,6 @@ describe("applyGraphFilters", () => {
     const filtered = applyGraphFilters(base, ["project", "task"], true);
 
     expect(filtered.nodes.map((n) => n.id)).toEqual(["p1", "t1"]);
-    // edge-2 pointed at the employee node, which is no longer visible.
     expect(filtered.edges.map((e) => e.id)).toEqual(["edge-1"]);
   });
 

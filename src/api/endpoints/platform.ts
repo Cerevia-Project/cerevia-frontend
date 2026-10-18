@@ -1,5 +1,3 @@
-/** Platform endpoints (unauthenticated). */
-
 import { api } from "@/api/client";
 
 export function getHealth(): Promise<{ status: "ok" }> {

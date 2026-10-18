@@ -1,10 +1,3 @@
-/**
- * TanStack Query cache keys.
- *
- * One place, so invalidation after a mutation never has to guess the shape of
- * a key written somewhere else.
- */
-
 import type {
   AuditListParams,
   ConflictListParams,

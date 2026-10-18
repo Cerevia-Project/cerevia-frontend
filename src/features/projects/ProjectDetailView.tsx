@@ -51,7 +51,6 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
   const project = useProject(projectId);
   const [activeTab, setActiveTab] = React.useState("summary");
 
-  // Heavier tabs only fetch once the user opens them.
   const tasks = useProjectTasks(projectId);
   const risks = useProjectRisks(projectId);
   const dependencies = useProjectDependencies(projectId, activeTab === "dependencies");
@@ -325,7 +324,6 @@ function EntityCard({
   icon: React.ComponentType<{ className?: string }>;
   items: EntityRef[];
   emptyText: string;
-  /** Shown instead of the plain empty text when absence is itself a finding. */
   gapText?: string;
 }) {
   return (

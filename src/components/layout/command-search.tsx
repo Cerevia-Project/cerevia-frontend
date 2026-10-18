@@ -18,12 +18,6 @@ export interface CommandSearchProps {
 
 const DEBOUNCE_MS = 250;
 
-/**
- * Global entity search, backed by `GET /graph/search`.
- *
- * Arrow keys move the highlight and Enter opens it, so the palette is usable
- * without a pointer.
- */
 export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
   const router = useRouter();
   const [query, setQuery] = React.useState("");
@@ -35,9 +29,6 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Clearing on close and resetting the highlight on a new search are
-  // derivations of props and state, not synchronization with anything
-  // external, so they are adjusted during render rather than in an effect.
   const [wasOpen, setWasOpen] = React.useState(open);
   if (wasOpen !== open) {
     setWasOpen(open);

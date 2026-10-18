@@ -11,13 +11,7 @@ export interface AnswerTextProps {
   onOpenCitation?: (citation: Citation) => void;
 }
 
-/**
- * Answer text with its citation markers turned into chips.
- *
- * The text is model output and is rendered as text: no HTML, no Markdown and
- * no automatic linking. A marker with no matching citation is left as written
- * rather than silently dropped.
- */
+/** Model output is rendered as text, never as markup or links. */
 export function AnswerText({ text, citations, onOpenCitation }: AnswerTextProps) {
   const parts = React.useMemo(() => splitOnCitationMarkers(text), [text]);
 

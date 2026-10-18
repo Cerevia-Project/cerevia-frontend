@@ -5,19 +5,12 @@ import { CircleHelp, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface InsufficientEvidenceProps extends React.HTMLAttributes<HTMLDivElement> {
-  /** What the system does know, taken from the answer's claims. */
   known?: string[];
-  /** What it could not establish. */
   missing?: string[];
-  /** Follow-ups offered by the API; clicking one asks it. */
   nextSteps?: string[];
   onNextStep?: (step: string) => void;
 }
 
-/**
- * Shown when the API reports `insufficient_evidence`. Saying what is missing
- * is the answer; nothing here invents a conclusion to fill the gap.
- */
 export function InsufficientEvidence({
   known = [],
   missing = [],

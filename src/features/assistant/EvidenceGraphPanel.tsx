@@ -24,12 +24,6 @@ export interface EvidenceGraphPanelProps {
   onOpenCitation?: (citation: Citation) => void;
 }
 
-/**
- * Evidence and reasoning behind the current answer.
- *
- * The Trace tab draws the paths the answer used, and links into the graph
- * explorer with the same path highlighted, so the two views stay in step.
- */
 export function EvidenceGraphPanel({
   claims,
   citations,

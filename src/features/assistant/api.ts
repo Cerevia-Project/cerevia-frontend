@@ -22,8 +22,6 @@ import type {
 } from "@/api/types";
 import { isDevTraceEnabled } from "@/lib/flags";
 
-/* ── Threads ───────────────────────────────────────────────────────────── */
-
 export function useConversations(params: PageParams = {}) {
   return useQuery({
     queryKey: queryKeys.conversations.list(params),
@@ -68,7 +66,6 @@ export function useEvidence(messageId: string | null) {
   });
 }
 
-/** Development-only retrieval trace drawer. */
 export function useRetrievalTrace(messageId: string | null) {
   return useQuery({
     queryKey: queryKeys.conversations.trace(messageId ?? ""),
@@ -85,13 +82,10 @@ export function useMessageFeedback(messageId: string) {
   });
 }
 
-/* ── Streamed answer ───────────────────────────────────────────────────── */
-
 export type AnswerPhase = "idle" | "sending" | "streaming" | "complete" | "error";
 
 export interface StreamedAnswer {
   messageId: string | null;
-  /** The question, echoed locally so the thread shows it before the answer. */
   question: string;
   text: string;
   claims: Claim[];
@@ -126,7 +120,6 @@ const emptyAnswer: StreamedAnswer = {
   reconnectAttempt: 0,
 };
 
-/** Status chip copy, keyed by the contract's stage enum. */
 export const STAGE_LABELS: Record<StreamStage, string> = {
   understanding: "Understanding the question…",
   retrieving: "Searching documents…",
@@ -135,19 +128,11 @@ export const STAGE_LABELS: Record<StreamStage, string> = {
   writing: "Writing the answer…",
 };
 
-/**
- * Sends a question and renders the answer as it streams.
- *
- * `POST …/messages` returns a stream URL rather than an answer, so the flow is
- * post → open stream → fold events into one view model. If the stream cannot
- * be finished, the stored message is fetched instead, so a dropped connection
- * never costs the user the answer.
- */
 export function useAssistantStream() {
   const queryClient = useQueryClient();
   const [answer, setAnswer] = React.useState<StreamedAnswer>(emptyAnswer);
   const closeRef = React.useRef<(() => void) | null>(null);
-  // Deltas land far faster than the screen repaints; batch them per frame.
+  // Deltas arrive faster than the screen paints, so they are flushed once per frame.
   const pendingTextRef = React.useRef("");
   const frameRef = React.useRef<number | null>(null);
 
@@ -242,14 +227,13 @@ export function useAssistantStream() {
           }));
           break;
         default:
-          // Tolerant reader: an event type this build does not know is ignored.
           break;
       }
     },
     [flushText, queueText],
   );
 
-  /** Last resort after a stream failure: read the answer the server stored. */
+  // When the stream cannot be finished, fall back to the stored answer.
   const loadStoredAnswer = React.useCallback(
     async (conversationId: string, messageId: string) => {
       try {
@@ -315,9 +299,7 @@ export function useAssistantStream() {
         onEvent: applyEvent,
         onReconnect: (attempt, canResume) =>
           setAnswer((current) => {
-            // Without an event id the server replays from the start, so the
-            // partial answer has to go: keeping it would duplicate every
-            // delta, claim and citation already rendered.
+            // Without an event id the server replays from the start, so drop what was rendered.
             if (canResume) return { ...current, reconnectAttempt: attempt };
             pendingTextRef.current = "";
             return {
@@ -354,7 +336,6 @@ export function useAssistantStream() {
     [applyEvent, flushText, loadStoredAnswer, queryClient],
   );
 
-  /** Stop rendering; the server keeps whatever it already stored. */
   const stop = React.useCallback(() => {
     closeRef.current?.();
     closeRef.current = null;

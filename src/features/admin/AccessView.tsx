@@ -39,17 +39,10 @@ type Permission = AclGrant["permission"];
 const PRINCIPAL_TYPES: PrincipalType[] = ["user", "role", "team"];
 const PERMISSIONS: Permission[] = ["read", "write"];
 
-/**
- * Source access control.
- *
- * The ACL is replaced as a whole (`PUT …/access`), so the editor holds a
- * working copy and saves it in one call.
- */
 export function AccessView() {
   const canManage = usePermission("admin:sources");
   const sources = useSources();
   const [chosenSourceId, setChosenSourceId] = React.useState<string | null>(null);
-  // Until the user picks one, the editor shows the first source's ACL.
   const sourceId = chosenSourceId ?? sources.data?.items[0]?.id ?? null;
 
   if (!canManage) {
@@ -122,8 +115,6 @@ function AclEditor({ sourceId }: { sourceId: string }) {
   const [principalId, setPrincipalId] = React.useState("");
   const [permission, setPermission] = React.useState<Permission>("read");
 
-  // The working copy follows the server's ACL whenever a new one arrives.
-  // Adjusting during render keeps the edit in step without an extra pass.
   const [syncedGrants, setSyncedGrants] = React.useState<AclGrant[] | null>(null);
   if (acl.data && acl.data.grants !== syncedGrants) {
     setSyncedGrants(acl.data.grants);

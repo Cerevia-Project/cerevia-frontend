@@ -1,20 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-/**
- * Smoke tests for the Cerevia workspace.
- *
- * These run against a live API: either the contract mock (Prism on :4010) or
- * the real backend, selected by NEXT_PUBLIC_API_BASE_URL. Nothing here asserts
- * a specific number, because every figure on screen comes from the API.
- *
- * Credentials come from E2E_EMAIL / E2E_PASSWORD.
- */
-
+// Runs against a live API. Credentials come from E2E_EMAIL and E2E_PASSWORD.
 const EMAIL = process.env.E2E_EMAIL ?? "admin@cerevia.dev";
 const PASSWORD = process.env.E2E_PASSWORD ?? "admin12345";
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
-/** An API client signed in as the given user, for arranging test data. */
 async function apiAs(
   playwright: typeof import("@playwright/test").request,
   email: string,
@@ -75,8 +65,6 @@ test.describe("Workspace", () => {
     await context.dispose();
     test.skip(items.length === 0, "no entities in this environment");
 
-    // Typed the way a person types: lower case, regardless of how the label
-    // is capitalised in the graph.
     const entity = items[0];
     const typed = entity.label.slice(0, 6).toLowerCase();
 
@@ -104,8 +92,6 @@ test.describe("Workspace", () => {
 
     await page.goto(`/graph?entity=${encodeURIComponent(items[0].id)}`);
 
-    // The canvas is hidden from assistive technology, so the list view is
-    // what makes the same data reachable.
     await expect(page.getByRole("tab", { name: /entities/i })).toBeVisible();
     await expect(page.getByRole("tab", { name: /relationships/i })).toBeVisible();
   });
@@ -116,7 +102,6 @@ test.describe("Workspace", () => {
     await page.getByLabel("Your question").fill(question);
     await page.getByRole("button", { name: /^ask$/i }).click();
 
-    // The question appears in the conversation immediately, before any answer.
     const conversation = page.getByRole("region", { name: "Conversation" });
     await expect(conversation.getByText(question, { exact: true })).toBeVisible();
   });
@@ -128,15 +113,12 @@ test.describe("Workspace", () => {
 
     const conversation = page.getByRole("region", { name: "Conversation" });
 
-    // Either an answer arrives or the failure is stated outright. What must
-    // never happen is the question vanishing into a silent dead end.
     await expect(
       conversation
         .getByRole("alert")
         .or(conversation.getByRole("button", { name: /this answer was helpful/i })),
     ).toBeVisible({ timeout: 45_000 });
 
-    // The workspace keeps working regardless of the assistant's state.
     await page.getByRole("link", { name: /decisions & evidence/i }).click();
     await page.waitForURL("**/decisions");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -169,14 +151,12 @@ test.describe("Permissions", () => {
   test("approval controls are absent without actions:approve", async ({ page, playwright }) => {
     const { context, csrfToken } = await apiAs(playwright.request, EMAIL, PASSWORD);
 
-    // A viewer holds documents:read and nothing that could approve anything.
     const created = await context.post("/api/v1/admin/users", {
       headers: { "X-CSRF-Token": csrfToken },
       data: { email: viewer.email, name: viewer.name, password: viewer.password, role: "role_viewer" },
     });
     expect(created.ok(), await created.text()).toBeTruthy();
 
-    // An admin drafts a proposal for the viewer to look at.
     const proposal = await context.post("/api/v1/actions/proposals", {
       headers: { "X-CSRF-Token": csrfToken },
       data: { kind: "status_report" },
@@ -191,7 +171,6 @@ test.describe("Permissions", () => {
     await page.getByRole("button", { name: /continue to workspace/i }).click();
     await page.waitForURL("**/overview");
 
-    // Administration is not offered to a role that cannot use it.
     await expect(page.getByRole("link", { name: /admin & permissions/i })).toHaveCount(0);
 
     await page.goto(`/actions/${proposalId}`);

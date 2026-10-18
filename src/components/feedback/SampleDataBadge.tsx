@@ -4,7 +4,6 @@ import * as React from "react";
 import { FlaskConical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** Marks a single record that came from the demonstration dataset. */
 export function SampleDataBadge({
   className,
   ...props

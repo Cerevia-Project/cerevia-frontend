@@ -46,8 +46,6 @@ export function Header() {
     const segments = pathname.split("/").filter(Boolean);
     return segments.map((seg, idx) => {
       const href = "/" + segments.slice(0, idx + 1).join("/");
-      // Record ids (`cnv_…`, `prj_launch`) mean nothing to a reader; they are
-      // named after the section they belong to instead.
       const isRecordId = idx > 0 && /^[a-z]+_[\w-]+$/i.test(seg);
       const formatted = isRecordId
         ? (RECORD_LABELS[segments[idx - 1]] ?? "Details")
@@ -94,7 +92,7 @@ export function Header() {
           </div>
         </div>
 
-        {/* Right: Quick Search, Intelligence Badge, Theme Toggle, User Menu */}
+        {/* Right: Quick Search, Theme Toggle, User Menu */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Quick Search Button */}
           <button
