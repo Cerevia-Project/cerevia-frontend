@@ -1,176 +1,134 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { GraphNode, GraphEdge } from "@/types";
+import * as React from "react";
+import Link from "next/link";
+import { ExternalLink, Network, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { EvidenceBadge } from "@/components/evidence/EvidenceBadge";
-import {
-  X,
-  ExternalLink,
-  GitCommit,
-  Network,
-} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EntityBadge, entityTypeConfig } from "@/components/entities/EntityBadge";
+import { SampleDataBadge } from "@/components/feedback/SampleDataBadge";
+import { ProvenanceList } from "@/components/graph/ProvenanceList";
+import { useEntity } from "@/features/graph/api";
+import { entityHref } from "@/lib/entity-routes";
+import { errorMessage } from "@/api/errors";
+import type { GraphNode } from "@/api/types";
 
 export interface NodeInspectorProps {
   node: GraphNode | null;
-  edges: GraphEdge[];
-  allNodes: GraphNode[];
   onClose: () => void;
-  onNavigateToNode?: (nodeId: string) => void;
+  onExpand?: (node: GraphNode) => void;
   className?: string;
 }
 
-export function NodeInspector({
-  node,
-  edges,
-  allNodes,
-  onClose,
-  onNavigateToNode,
-  className,
-}: NodeInspectorProps) {
-  const router = useRouter();
+/**
+ * Properties and provenance for the selected entity.
+ *
+ * The summary comes from the subgraph already on screen; the full record and
+ * its provenance are fetched from `GET /graph/entities/{id}`.
+ */
+export function NodeInspector({ node, onClose, onExpand, className }: NodeInspectorProps) {
+  const detail = useEntity(node?.id ?? null);
+
   if (!node) return null;
 
-  // Find connected edges and neighbors
-  const connectedEdges = edges.filter(
-    (e) => e.source === node.id || e.target === node.id
-  );
-
-  const nodeMap = new Map<string, GraphNode>();
-  allNodes.forEach((n) => nodeMap.set(n.id, n));
+  const config = entityTypeConfig(node.type);
+  const properties = Object.entries(detail.data?.properties ?? node.properties ?? {});
 
   return (
-    <div
+    <aside
+      aria-label={`Details for ${node.label}`}
       className={cn(
-        "flex flex-col h-full rounded-md border border-border bg-card text-card-foreground shadow-sm overflow-hidden",
-        className
+        "flex h-full flex-col overflow-hidden rounded-md border border-border bg-card text-card-foreground shadow-sm",
+        className,
       )}
     >
-      {/* Inspector Header */}
-      <div className="flex items-center justify-between border-b border-border p-3.5 bg-secondary/30">
-        <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded bg-secondary border border-border">
-            <Network className="h-3.5 w-3.5 text-primary" />
-          </div>
-          <div>
-            <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono">
-              Node Inspector
-            </h4>
+      <header className="flex items-start justify-between gap-2 border-b border-border p-3">
+        <div className="min-w-0 space-y-1.5">
+          <EntityBadge type={node.type} size="sm" />
+          <h2 className="truncate text-sm font-semibold text-foreground" title={node.label}>
+            {node.label}
+          </h2>
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[10px] text-muted-foreground">{node.id}</span>
+            {node.isSampleData && <SampleDataBadge />}
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-          onClick={onClose}
-        >
-          <X className="h-4 w-4" />
+        <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close the inspector">
+          <X className="h-3.5 w-3.5" />
         </Button>
-      </div>
+      </header>
 
-      {/* Inspector Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
-        {/* Node Summary Card */}
-        <div className="space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-mono uppercase bg-secondary text-muted-foreground border border-border mb-1">
-                {node.type}
-              </span>
-              <h3 className="text-sm font-semibold text-foreground leading-snug">
-                {node.label}
-              </h3>
-            </div>
-            {node.evidenceState && (
-              <EvidenceBadge state={node.evidenceState} size="sm" />
-            )}
-          </div>
-          {node.description && (
-            <p className="text-muted-foreground leading-relaxed text-[11px]">
-              {node.description}
-            </p>
-          )}
-        </div>
-
-        {/* Node Metadata Table */}
-        {node.metadata && Object.keys(node.metadata).length > 0 && (
-          <div className="space-y-1.5">
-            <h5 className="text-[11px] font-medium text-foreground uppercase tracking-wider font-mono">
-              Attributes
-            </h5>
-            <div className="rounded border border-border divide-y divide-border bg-background/50">
-              {Object.entries(node.metadata).map(([key, val]) => (
-                <div key={key} className="flex items-center justify-between px-2.5 py-1.5 text-[11px]">
-                  <span className="text-muted-foreground capitalize">{key.replace(/([A-Z])/g, " $1")}</span>
-                  <span className="font-mono text-foreground">{String(val)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+      <div className="flex-1 space-y-4 overflow-y-auto p-3">
+        {typeof node.hiddenNeighborCount === "number" && node.hiddenNeighborCount > 0 && (
+          <p className="rounded-md border border-border bg-muted/40 p-2 text-[11px] text-muted-foreground">
+            {node.hiddenNeighborCount} more connected{" "}
+            {node.hiddenNeighborCount === 1 ? "entity is" : "entities are"} hidden. Expand to load
+            them.
+          </p>
         )}
 
-        {/* Connected Neighbors List */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h5 className="text-[11px] font-medium text-foreground uppercase tracking-wider font-mono">
-              Connected Relations ({connectedEdges.length})
-            </h5>
-          </div>
-
-          {connectedEdges.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground italic">No linked relations</p>
-          ) : (
+        <section className="space-y-1.5">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Properties
+          </h3>
+          {detail.isPending ? (
             <div className="space-y-1.5">
-              {connectedEdges.map((edge) => {
-                const isSource = edge.source === node.id;
-                const otherNodeId = isSource ? edge.target : edge.source;
-                const otherNode = nodeMap.get(otherNodeId);
-                if (!otherNode) return null;
-
-                return (
-                  <button
-                    key={edge.id}
-                    onClick={() => onNavigateToNode?.(otherNode.id)}
-                    className="w-full text-left flex items-center justify-between p-2 rounded border border-border bg-card hover:bg-secondary/60 transition-colors group"
-                  >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <GitCommit className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <div className="truncate">
-                        <p className="text-[11px] font-medium text-foreground group-hover:text-primary transition-colors truncate">
-                          {otherNode.label}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground font-mono">
-                          {isSource ? `→ ${edge.label}` : `← ${edge.label}`}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[9px] uppercase px-1 py-0.5 rounded bg-secondary text-muted-foreground font-mono">
-                      {otherNode.type}
-                    </span>
-                  </button>
-                );
-              })}
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-4/5" />
             </div>
+          ) : properties.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground">
+              This entity has no properties beyond its label.
+            </p>
+          ) : (
+            <dl className="space-y-1.5">
+              {properties.map(([key, value]) => (
+                <div key={key} className="grid grid-cols-[minmax(0,90px)_1fr] gap-2 text-[11px]">
+                  <dt className="truncate text-muted-foreground">{key}</dt>
+                  <dd className="break-words text-foreground">{formatValue(value)}</dd>
+                </div>
+              ))}
+            </dl>
           )}
-        </div>
+        </section>
+
+        <section className="space-y-1.5">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Provenance
+          </h3>
+          {detail.isPending ? (
+            <Skeleton className="h-16 w-full rounded-md" />
+          ) : detail.isError ? (
+            <p className="text-[11px] text-muted-foreground">{errorMessage(detail.error)}</p>
+          ) : (
+            <ProvenanceList provenance={detail.data?.provenance ?? []} />
+          )}
+        </section>
       </div>
 
-      {/* Inspector Footer Actions */}
-      <div className="border-t border-border p-3 flex items-center justify-between gap-2 bg-secondary/10">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 text-xs flex-1 gap-1.5"
-          onClick={() => {
-            const url = `/${node.type === "document" ? "sources" : `${node.type}s`}/${node.id}`;
-            router.push(url);
-          }}
-        >
-          <ExternalLink className="h-3 w-3" />
-          Open Detail
+      <footer className="flex items-center gap-2 border-t border-border p-3">
+        {onExpand && (
+          <Button variant="outline" size="sm" className="h-7 flex-1 text-xs" onClick={() => onExpand(node)}>
+            <Network className="mr-1.5 h-3 w-3" aria-hidden="true" />
+            Expand
+          </Button>
+        )}
+        <Button asChild variant="ghost" size="sm" className="h-7 flex-1 text-xs">
+          <Link href={entityHref(node.type, node.id)}>
+            Open {config.label.toLowerCase()}
+            <ExternalLink className="ml-1.5 h-3 w-3" aria-hidden="true" />
+          </Link>
         </Button>
-      </div>
-    </div>
+      </footer>
+    </aside>
   );
+}
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
 }

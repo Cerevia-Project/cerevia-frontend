@@ -2,131 +2,177 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { User, ArrowRight } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-
-export interface PersonItem {
-  id: string;
-  name: string;
-  role: string;
-  team: string;
-  tenure: string;
-  authoredDecisionsCount: number;
-  projectsCount: number;
-  status: "active" | "away";
-}
-
-export const MOCK_PEOPLE: PersonItem[] = [
-  {
-    id: "person-elena",
-    name: "Elena Rostova",
-    role: "Principal Data Architect",
-    team: "Core Platform",
-    tenure: "4 years",
-    authoredDecisionsCount: 14,
-    projectsCount: 3,
-    status: "active",
-  },
-  {
-    id: "person-marcus",
-    name: "Marcus Chen",
-    role: "Security & Compliance Lead",
-    team: "Security & Compliance",
-    tenure: "3 years",
-    authoredDecisionsCount: 8,
-    projectsCount: 2,
-    status: "active",
-  },
-  {
-    id: "person-devon",
-    name: "Devon Vance",
-    role: "Staff Site Reliability Engineer",
-    team: "Infrastructure SRE",
-    tenure: "5 years",
-    authoredDecisionsCount: 11,
-    projectsCount: 4,
-    status: "active",
-  },
-  {
-    id: "person-sarah",
-    name: "Sarah Lin",
-    role: "VP Engineering",
-    team: "Engineering Leadership",
-    tenure: "6 years",
-    authoredDecisionsCount: 19,
-    projectsCount: 6,
-    status: "active",
-  },
-];
+import { Search, Users } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState, QueryBoundary, SampleDataBadge } from "@/components/feedback";
+import { EntityBadge } from "@/components/entities/EntityBadge";
+import { CitationChip } from "@/components/evidence/CitationChip";
+import { usePeople, useExpertiseSearch } from "@/features/people/api";
+import { formatPercent } from "@/lib/formatters";
+import { errorMessage } from "@/api/errors";
 
 export function PeopleView() {
+  const query = usePeople();
+  const [filter, setFilter] = React.useState("");
+
+  const items = (query.data?.items ?? []).filter((person) =>
+    person.label.toLowerCase().includes(filter.trim().toLowerCase()),
+  );
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              People &amp; Knowledge Owners
-            </h1>
-            <Badge variant="outline" className="font-mono text-[10px]">
-              {MOCK_PEOPLE.length} Key Contributors
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Identify domain experts, decision authors, and ownership networks mapped in the knowledge graph.
-          </p>
-        </div>
+      <header className="border-b border-border pb-3">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">People and teams</h1>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Directory and expertise, each backed by the documents it was derived from.
+        </p>
+      </header>
+
+      <Tabs defaultValue="directory">
+        <TabsList>
+          <TabsTrigger value="directory">Directory</TabsTrigger>
+          <TabsTrigger value="expertise">Find expertise</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="directory" className="mt-4 space-y-4">
+          <Input
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+            placeholder="Filter people…"
+            className="h-8 max-w-xs text-xs"
+            aria-label="Filter people by name"
+          />
+
+          <QueryBoundary
+            query={query}
+            errorTitle="Could not load the directory"
+            isEmpty={(page) => page.items.length === 0}
+            empty={
+              <EmptyState
+                icon={<Users className="h-4 w-4" />}
+                title="No people"
+                description="People appear here once they are extracted from ingested documents."
+              />
+            }
+          >
+            {() =>
+              items.length === 0 ? (
+                <EmptyState title="Nobody matches that filter" />
+              ) : (
+                <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {items.map((person) => (
+                    <li key={person.id}>
+                      <Link href={`/people/${encodeURIComponent(person.id)}`}>
+                        <Card className="p-3 transition-colors hover:border-primary/40">
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <EntityBadge type={person.type} iconOnly size="sm" />
+                              <span className="truncate text-xs font-medium text-foreground">
+                                {person.label}
+                              </span>
+                            </span>
+                            {person.isSampleData && <SampleDataBadge />}
+                          </span>
+                        </Card>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )
+            }
+          </QueryBoundary>
+        </TabsContent>
+
+        <TabsContent value="expertise" className="mt-4">
+          <ExpertiseSearch />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+/**
+ * Ranked people for a topic. The ranking and the evidence both come from the
+ * API; nothing about a person is inferred here.
+ */
+function ExpertiseSearch() {
+  const [topic, setTopic] = React.useState("");
+  const [debounced, setDebounced] = React.useState("");
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebounced(topic), 300);
+    return () => clearTimeout(timer);
+  }, [topic]);
+
+  const query = useExpertiseSearch(debounced);
+
+  return (
+    <div className="space-y-4">
+      <div className="relative max-w-sm">
+        <Search
+          className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <Input
+          value={topic}
+          onChange={(event) => setTopic(event.target.value)}
+          placeholder="Who knows about… ingestion, billing, retention?"
+          className="h-8 pl-8 text-xs"
+          aria-label="Expertise topic"
+        />
       </div>
 
-      {/* People Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {MOCK_PEOPLE.map((p) => (
-          <Card key={p.id} className="p-4 flex flex-col justify-between hover:border-primary/40 transition-colors">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-primary border border-border">
-                  <User className="h-5 w-5" />
-                </div>
-                <div>
-                  <Link
-                    href={`/people/${p.id}`}
-                    className="text-sm font-semibold text-foreground hover:text-primary transition-colors block"
-                  >
-                    {p.name}
-                  </Link>
-                  <p className="text-[11px] text-muted-foreground">{p.role}</p>
-                </div>
-              </div>
-
-              <div className="rounded border border-border p-2.5 bg-background/50 text-[11px] space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Team</span>
-                  <span className="font-medium text-foreground">{p.team}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Decisions</span>
-                  <span className="font-mono text-foreground">{p.authoredDecisionsCount} ADRs</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Projects</span>
-                  <span className="font-mono text-foreground">{p.projectsCount}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-3">
-              <Button asChild variant="outline" size="sm" className="w-full h-7 text-xs">
-                <Link href={`/people/${p.id}`}>
-                  View Profile <ArrowRight className="ml-1 h-3 w-3" />
-                </Link>
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
+      {debounced.trim().length <= 1 ? (
+        <p className="text-xs text-muted-foreground">
+          Enter a topic to see who has worked on it, and what that is based on.
+        </p>
+      ) : query.isPending ? (
+        <Skeleton className="h-24 w-full rounded-md" />
+      ) : query.isError ? (
+        <p className="text-xs text-muted-foreground">{errorMessage(query.error)}</p>
+      ) : query.data.items.length === 0 ? (
+        <EmptyState
+          title="No evidenced expertise"
+          description={`Nothing in the knowledge base links anyone to "${debounced}".`}
+        />
+      ) : (
+        <ol className="space-y-3">
+          {query.data.items.map((match) => (
+            <li key={match.person.id}>
+              <Card>
+                <CardContent className="space-y-2 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <Link href={`/people/${encodeURIComponent(match.person.id)}`}>
+                      <EntityBadge
+                        type={match.person.type}
+                        label={match.person.label}
+                        size="sm"
+                        clickable
+                      />
+                    </Link>
+                    <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                      {formatPercent(match.score)} match
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {match.evidence.map((citation, index) => (
+                      <CitationChip
+                        key={citation.id}
+                        citation={citation}
+                        index={index + 1}
+                        size="sm"
+                      />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }

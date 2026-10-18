@@ -1,117 +1,103 @@
 "use client";
 
 import * as React from "react";
-import { Check, X } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AccessDeniedState, EmptyState, QueryBoundary } from "@/components/feedback";
+import { AdminNav } from "@/features/admin/AdminNav";
+import { usePermission, useSession } from "@/providers/session-provider";
+import { usePermissionCatalog, useRoles } from "@/features/admin/api";
 
-interface RolePerm {
-  permission: string;
-  admin: boolean;
-  steward: boolean;
-  explorer: boolean;
-  auditor: boolean;
-}
-
-const PERMISSIONS_MATRIX: RolePerm[] = [
-  {
-    permission: "Traverse Knowledge Graph (Read)",
-    admin: true,
-    steward: true,
-    explorer: true,
-    auditor: true,
-  },
-  {
-    permission: "Ask AI Assistant & View Citations",
-    admin: true,
-    steward: true,
-    explorer: true,
-    auditor: true,
-  },
-  {
-    permission: "Submit & Edit ADR Decisions",
-    admin: true,
-    steward: true,
-    explorer: false,
-    auditor: false,
-  },
-  {
-    permission: "Approve Evidence Consensus Proposals",
-    admin: true,
-    steward: true,
-    explorer: false,
-    auditor: false,
-  },
-  {
-    permission: "Configure Data Connectors & Ingestion",
-    admin: true,
-    steward: false,
-    explorer: false,
-    auditor: false,
-  },
-  {
-    permission: "Inspect Multi-Tenant Audit Trail",
-    admin: true,
-    steward: false,
-    explorer: false,
-    auditor: true,
-  },
-];
-
+/**
+ * Roles and the permissions they carry.
+ *
+ * Roles are defined server-side; this screen reads them rather than editing
+ * them, because the API exposes no role mutation.
+ */
 export function RolesView() {
+  const canManage = usePermission("admin:roles");
+  const roles = useRoles();
+  const catalog = usePermissionCatalog();
+  const { roles: myRoles } = useSession();
+
+  if (!canManage) {
+    return (
+      <div className="space-y-4">
+        <AdminNav />
+        <AccessDeniedState description="Viewing roles requires the admin:roles permission." />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Roles &amp; Permissions Matrix
-            </h1>
-            <Badge variant="outline" className="font-mono text-[10px]">
-              RBAC Enabled
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Granular access controls governing graph traversals, decision approvals, and connector ingestion.
-          </p>
-        </div>
-      </div>
+      <AdminNav />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="text-[11px] hover:bg-transparent">
-                <TableHead>Capability / Permission</TableHead>
-                <TableHead className="text-center w-28">Admin</TableHead>
-                <TableHead className="text-center w-36">Knowledge Steward</TableHead>
-                <TableHead className="text-center w-32">Graph Explorer</TableHead>
-                <TableHead className="text-center w-28">Auditor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="text-xs">
-              {PERMISSIONS_MATRIX.map((perm, idx) => (
-                <TableRow key={idx} className="hover:bg-secondary/40">
-                  <TableCell className="font-medium text-foreground">{perm.permission}</TableCell>
-                  <TableCell className="text-center">
-                    {perm.admin ? <Check className="h-4 w-4 text-success mx-auto" /> : <X className="h-4 w-4 text-muted-foreground/40 mx-auto" />}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {perm.steward ? <Check className="h-4 w-4 text-success mx-auto" /> : <X className="h-4 w-4 text-muted-foreground/40 mx-auto" />}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {perm.explorer ? <Check className="h-4 w-4 text-success mx-auto" /> : <X className="h-4 w-4 text-muted-foreground/40 mx-auto" />}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {perm.auditor ? <Check className="h-4 w-4 text-success mx-auto" /> : <X className="h-4 w-4 text-muted-foreground/40 mx-auto" />}
-                  </TableCell>
-                </TableRow>
+      <header>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Roles</h1>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          What each role is permitted to do. The server enforces these; the interface only hides
+          what it would refuse.
+        </p>
+      </header>
+
+      <QueryBoundary
+        query={roles}
+        errorTitle="Could not load roles"
+        isEmpty={(data) => data.items.length === 0}
+        empty={<EmptyState title="No roles" description="No role is defined for this organization." />}
+      >
+        {(data) => (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {data.items.map((role) => (
+              <Card key={role.id}>
+                <CardHeader className="flex flex-row items-center justify-between border-b border-border p-4">
+                  <CardTitle className="text-sm font-semibold">{role.name}</CardTitle>
+                  {myRoles.includes(role.name) && (
+                    <Badge variant="secondary" size="sm" className="text-[10px]">
+                      Your role
+                    </Badge>
+                  )}
+                </CardHeader>
+                <CardContent className="p-4">
+                  {role.permissions.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">This role carries no permissions.</p>
+                  ) : (
+                    <ul className="flex flex-wrap gap-1.5">
+                      {role.permissions.map((permission) => (
+                        <li key={permission}>
+                          <Badge variant="outline" className="font-mono text-[10px]">
+                            {permission}
+                          </Badge>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </QueryBoundary>
+
+      {catalog.data && catalog.data.items.length > 0 && (
+        <Card>
+          <CardHeader className="border-b border-border p-4">
+            <CardTitle className="text-sm font-semibold">All permissions</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <ul className="flex flex-wrap gap-1.5">
+              {catalog.data.items.map((permission) => (
+                <li key={permission}>
+                  <Badge variant="outline" className="font-mono text-[10px]">
+                    {permission}
+                  </Badge>
+                </li>
               ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

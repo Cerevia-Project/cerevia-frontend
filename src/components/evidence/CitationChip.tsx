@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { FileText, ExternalLink, Bookmark } from "lucide-react";
+import { FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Citation, SourceDocument } from "@/types";
+import type { Citation } from "@/api/types";
 import { SourcePreview } from "@/components/evidence/SourcePreview";
+import { humanize, truncate } from "@/lib/formatters";
 import {
   Tooltip,
   TooltipContent,
@@ -13,44 +14,31 @@ import {
 } from "@/components/ui/tooltip";
 
 export interface CitationChipProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick"> {
   citation: Citation;
-  previewSource?: SourceDocument;
+  /** 1-based marker shown in the chip, matching the answer's citation order. */
+  index: number;
+  /** Takes over opening the preview (e.g. a shared evidence panel). */
   onOpenPreview?: (citation: Citation) => void;
   size?: "sm" | "default";
 }
 
 export function CitationChip({
   citation,
-  previewSource,
+  index,
   onOpenPreview,
   size = "default",
   className,
   ...props
 }: CitationChipProps) {
-  const [internalPreviewOpen, setInternalPreviewOpen] = React.useState(false);
+  const [previewOpen, setPreviewOpen] = React.useState(false);
 
-  const fallbackSource: SourceDocument = previewSource || {
-    id: citation.code,
-    title: citation.documentTitle || "Referenced Knowledge Source",
-    type: citation.sourceType || "confluence",
-    author: "Architecture Review Board",
-    authorRole: "Technical Leadership",
-    lastUpdated: "3 days ago",
-    reliabilityScore: 95,
-    section: "Section 3.1: Core Specifications",
-    snippet: citation.snippet || "Organizational decision record validating this claim in the system.",
-    highlightedText: citation.snippet || citation.label,
-  };
-
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (onOpenPreview) {
-      onOpenPreview(citation);
-    } else {
-      setInternalPreviewOpen(true);
-    }
-    props.onClick?.(e);
-  };
+  const location = [
+    citation.section ? `Section ${citation.section}` : null,
+    citation.page !== null && citation.page !== undefined ? `Page ${citation.page}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <>
@@ -59,42 +47,34 @@ export function CitationChip({
           <TooltipTrigger asChild>
             <button
               type="button"
-              onClick={handleClick}
+              onClick={() => (onOpenPreview ? onOpenPreview(citation) : setPreviewOpen(true))}
               className={cn(
-                "inline-flex items-center gap-1 rounded-md border border-border/80 bg-muted/60 px-2 py-0.5 font-mono text-[11px] font-medium text-muted-foreground transition-all hover:border-primary/50 hover:bg-accent hover:text-accent-foreground cursor-pointer select-none active:scale-[0.98]",
-                size === "sm" && "text-[10px] px-1.5 py-0.2",
-                className
+                "inline-flex cursor-pointer select-none items-center gap-1 rounded-md border border-border/80 bg-muted/60 px-2 py-0.5 font-mono text-[11px] font-medium text-muted-foreground transition-all hover:border-primary/50 hover:bg-accent hover:text-accent-foreground active:scale-[0.98]",
+                size === "sm" && "px-1.5 text-[10px]",
+                className,
               )}
-              aria-label={`Citation ${citation.code}: ${citation.documentTitle}`}
+              aria-label={`Citation ${index}: ${citation.documentTitle}`}
               {...props}
             >
-              <FileText className="h-3 w-3 shrink-0 text-primary/70" />
-              <span>[{citation.code}]</span>
+              <FileText className="h-3 w-3 shrink-0 text-primary/70" aria-hidden="true" />
+              <span>[{index}]</span>
             </button>
           </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs text-xs space-y-1 p-2">
-            <p className="font-semibold text-foreground flex items-center gap-1">
-              <Bookmark className="h-3 w-3 text-primary" />
-              {citation.documentTitle}
+          <TooltipContent side="top" className="max-w-xs space-y-1 p-2 text-xs">
+            <p className="font-semibold text-foreground">{citation.documentTitle}</p>
+            <p className="font-mono text-[10px] text-muted-foreground">
+              v{citation.documentVersion}
+              {location ? ` · ${location}` : ""} · {humanize(citation.sourceStatus)}
             </p>
-            {citation.label && (
-              <p className="text-[11px] text-muted-foreground line-clamp-2">
-                &ldquo;{citation.label}&rdquo;
-              </p>
-            )}
-            <p className="text-[10px] text-primary/80 pt-1 flex items-center gap-1 font-mono">
-              Click to view source excerpt <ExternalLink className="h-2.5 w-2.5" />
+            <p className="line-clamp-3 text-[11px] text-muted-foreground">
+              {truncate(citation.passage, 180)}
             </p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
       {!onOpenPreview && (
-        <SourcePreview
-          source={fallbackSource}
-          open={internalPreviewOpen}
-          onOpenChange={setInternalPreviewOpen}
-        />
+        <SourcePreview citation={citation} open={previewOpen} onOpenChange={setPreviewOpen} />
       )}
     </>
   );

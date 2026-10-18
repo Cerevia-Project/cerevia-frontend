@@ -93,29 +93,44 @@ import {
   LoadingState,
   AccessDeniedState,
 } from "@/components/feedback";
-import { GraphCanvas, GraphControls, NodeInspector } from "@/components/graph";
-import { MOCK_GRAPH_DATA } from "@/mocks/graph";
+import {
+  GraphCanvas,
+  GraphControls,
+  GraphLegend,
+  NodeInspector,
+  type GraphCanvasHandle,
+  type GraphLayout,
+} from "@/components/graph";
+import { FIXTURES } from "@/mocks";
 import { EvidenceBadge } from "@/components/evidence/EvidenceBadge";
 import { CitationChip } from "@/components/evidence/CitationChip";
 import { EvidencePanel } from "@/components/evidence/EvidencePanel";
 import { SourcePreview } from "@/components/evidence/SourcePreview";
 import { EntityBadge } from "@/components/entities/EntityBadge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { COLOR_TOKENS, EVIDENCE_STATES_CONFIG, ENTITY_TYPES_CONFIG } from "@/config/tokens";
-import { EvidenceState, EntityType, SourceDocument, EvidenceClaim, GraphNode } from "@/types";
+import { COLOR_TOKENS, EVIDENCE_KIND_CONFIG, ENTITY_TYPES_CONFIG } from "@/config/tokens";
+import type { Citation, EntityType, EvidenceKind, GraphNode } from "@/api/types";
 
 export default function DesignSystemPage() {
   const [copiedToken, setCopiedToken] = React.useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [sheetOpen, setSheetOpen] = React.useState(false);
-  const [previewDoc, setPreviewDoc] = React.useState<SourceDocument | null>(null);
-  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [previewCitation, setPreviewCitation] = React.useState<Citation | null>(null);
 
-  // Graph interactive demo states
-  const [graphZoom, setGraphZoom] = React.useState(1);
-  const [graphFilter, setGraphFilter] = React.useState<EntityType | "all">("all");
+  // Graph showcase state, driven by the contract's neighbourhood fixture.
+  const graphFixture = FIXTURES.graph.launchNeighborhood;
+  const [graphLayout, setGraphLayout] = React.useState<GraphLayout>("force");
   const [graphSearch, setGraphSearch] = React.useState("");
-  const [selectedGraphNode, setSelectedGraphNode] = React.useState<GraphNode | null>(MOCK_GRAPH_DATA.nodes[0]);
+  const [graphEntityTypes, setGraphEntityTypes] = React.useState<string[]>([]);
+  const [graphEdgeTypes, setGraphEdgeTypes] = React.useState<string[]>([]);
+  const [showHistorical, setShowHistorical] = React.useState(true);
+  const [selectedGraphNode, setSelectedGraphNode] = React.useState<GraphNode | null>(
+    graphFixture.nodes[0] ?? null,
+  );
+  const graphCanvasRef = React.useRef<GraphCanvasHandle>(null);
+
+  const showcaseCitations = FIXTURES.answers.launchDelay.citations;
+  const showcaseClaims = FIXTURES.answers.launchDelay.claims;
 
   // Form interactive demo states
   const [inputVal, setInputVal] = React.useState("Autonomous Agent Architecture");
@@ -129,50 +144,6 @@ export default function DesignSystemPage() {
     setCopiedToken(text);
     toast.success(`Copied to clipboard: ${text}`);
     setTimeout(() => setCopiedToken(null), 2000);
-  };
-
-  const sampleSourceDoc: SourceDocument = {
-    id: "DOC-FALKOR-01",
-    title: "ADR-104: FalkorDB Graph Selection & Benchmark Evaluation",
-    type: "confluence",
-    author: "Dr. Elena Vance",
-    authorRole: "Principal Systems Architect",
-    sourceUrl: "https://wiki.cerevia.internal/adr-104",
-    lastUpdated: "October 14, 2026",
-    reliabilityScore: 97,
-    section: "Section 4.2: Redis Module Multi-Hop Throughput",
-    snippet:
-      "Under heavy multi-tenant indexing tests, FalkorDB demonstrated consistent sub-12ms response times for 6-hop Cypher queries. Memory utilization remained bounded under 4GB for 500k triples.",
-    highlightedText:
-      "FalkorDB demonstrated consistent sub-12ms response times for 6-hop Cypher queries.",
-  };
-
-  const sampleClaim: EvidenceClaim = {
-    id: "CLM-GRAPH-88",
-    claim:
-      "Cytoscape graph rendering was approved for real-time visualization over D3 due to native Canvas WebGL fallback.",
-    state: "inferred",
-    confidenceScore: 88,
-    rationale:
-      "Synthesized from Frontend RFC-88 and PR review discussions across the UI platform and Graphics engineering teams.",
-    citations: [
-      {
-        id: "cit-10",
-        code: "RFC-88",
-        label: "Canvas & WebGL rendering benchmarks",
-        documentTitle: "Frontend Streaming Architecture RFC",
-        sourceType: "github",
-        snippet: "Cytoscape canvas rendering outperformed SVG alternatives at 10,000 nodes.",
-      },
-      {
-        id: "cit-11",
-        code: "PR-412",
-        label: "Initial graph view port integration",
-        documentTitle: "Cerevia Frontend Repository PR #412",
-        sourceType: "github",
-      },
-    ],
-    graphPath: ["Decision #098", "implements", "RFC-88", "authoredBy", "Habib Adavize"],
   };
 
   return (
@@ -189,7 +160,7 @@ export default function DesignSystemPage() {
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
-            Centralized design token foundation, accessible Radix UI primitives, and knowledge-specific evidence components built for Cerevia’s enterprise AI and FalkorDB graph workspace.
+            Design tokens, accessible primitives, and the evidence components the workspace is built from.
           </p>
         </div>
 
@@ -250,15 +221,13 @@ export default function DesignSystemPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {(Object.keys(EVIDENCE_STATES_CONFIG) as EvidenceState[]).map((state) => {
-                const conf = EVIDENCE_STATES_CONFIG[state];
+              {(Object.keys(EVIDENCE_KIND_CONFIG) as EvidenceKind[]).map((kind) => {
+                const conf = EVIDENCE_KIND_CONFIG[kind];
                 return (
-                  <Card key={state} className="p-4 space-y-2">
+                  <Card key={kind} className="p-4 space-y-2">
                     <div className="flex items-center justify-between">
-                      <EvidenceBadge state={state} size="default" />
-                      <span className="font-mono text-[10px] text-muted-foreground">
-                        {conf.confidenceRange}
-                      </span>
+                      <EvidenceBadge kind={kind} size="default" />
+                      <span className="font-mono text-[10px] text-muted-foreground">{kind}</span>
                     </div>
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       {conf.description}
@@ -283,96 +252,19 @@ export default function DesignSystemPage() {
 
             <Card className="p-5 space-y-4">
               <div className="flex flex-wrap items-center gap-3">
-                <CitationChip
-                  citation={{
-                    id: "c-1",
-                    code: "ADR-104",
-                    label: "FalkorDB Sub-millisecond latency results",
-                    documentTitle: "Architecture Decision: Graph Store Selection",
-                    sourceType: "confluence",
-                  }}
-                  previewSource={sampleSourceDoc}
-                  onOpenPreview={() => {
-                    setPreviewDoc(sampleSourceDoc);
-                    setPreviewOpen(true);
-                  }}
-                />
-
-                <CitationChip
-                  citation={{
-                    id: "c-2",
-                    code: "PRD-2026.1 §3",
-                    label: "Conversational UI citation requirements",
-                    documentTitle: "Cerevia Knowledge Platform PRD",
-                    sourceType: "google_doc",
-                  }}
-                  previewSource={{
-                    ...sampleSourceDoc,
-                    id: "PRD-2026.1",
-                    title: "Cerevia Product Requirements Document Q1",
-                    type: "google_doc",
-                    section: "Section 3: Assistant Interface",
-                    snippet: "Every generated response must provide verifiable citations linked to FalkorDB nodes.",
-                    highlightedText: "Every generated response must provide verifiable citations.",
-                  }}
-                  onOpenPreview={(c) => {
-                    setPreviewDoc({
-                      ...sampleSourceDoc,
-                      id: c.code,
-                      title: c.documentTitle,
-                      type: c.sourceType,
-                    });
-                    setPreviewOpen(true);
-                  }}
-                />
-
-                <CitationChip
-                  citation={{
-                    id: "c-3",
-                    code: "Slack #eng-arch",
-                    label: "Sync discussion on Cypher edge indexing",
-                    documentTitle: "Slack Engineering Channel Thread",
-                    sourceType: "slack",
-                  }}
-                  onOpenPreview={(c) => {
-                    setPreviewDoc({
-                      ...sampleSourceDoc,
-                      id: c.code,
-                      title: c.documentTitle,
-                      type: "slack",
-                      author: "Sarah Chen (Infra)",
-                      snippet: "Edge indexing in FalkorDB gave us 3x speedup on path queries.",
-                      highlightedText: "Edge indexing in FalkorDB gave us 3x speedup.",
-                    });
-                    setPreviewOpen(true);
-                  }}
-                />
-
-                <CitationChip
-                  citation={{
-                    id: "c-4",
-                    code: "PR #412 §src",
-                    label: "Cytoscape WebGL canvas integration commit",
-                    documentTitle: "Cerevia Frontend Repository Pull Request",
-                    sourceType: "github",
-                  }}
-                  onOpenPreview={(c) => {
-                    setPreviewDoc({
-                      ...sampleSourceDoc,
-                      id: c.code,
-                      title: c.documentTitle,
-                      type: "github",
-                      author: "Habib Adavize",
-                      snippet: "Refactored graph canvas to use Cytoscape WebGL renderer fallback.",
-                      highlightedText: "Refactored graph canvas to use Cytoscape WebGL renderer.",
-                    });
-                    setPreviewOpen(true);
-                  }}
-                />
+                {showcaseCitations.map((citation, index) => (
+                  <CitationChip
+                    key={citation.id}
+                    citation={citation}
+                    index={index + 1}
+                    onOpenPreview={setPreviewCitation}
+                  />
+                ))}
               </div>
 
               <p className="text-xs text-muted-foreground italic">
-                Tip: CitationChips provide instant tooltips on hover and trigger the detailed SourcePreview sheet upon click.
+                Chips show the document, version and passage on hover, and open the source drawer
+                on click. The numbering matches the citation order in the answer.
               </p>
             </Card>
           </div>
@@ -388,7 +280,17 @@ export default function DesignSystemPage() {
                 Container displaying a claim, primary verification badge, confidence score, source citations, and graph path trace.
               </p>
             </div>
-            <EvidencePanel claim={sampleClaim} collapsible />
+            <div className="space-y-3">
+              {showcaseClaims.map((claim) => (
+                <EvidencePanel
+                  key={claim.id}
+                  claim={claim}
+                  citations={showcaseCitations}
+                  paths={FIXTURES.answers.launchDelay.paths}
+                  onOpenPreview={setPreviewCitation}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Section: Graph Entity Badges */}
@@ -407,39 +309,24 @@ export default function DesignSystemPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {(Object.keys(ENTITY_TYPES_CONFIG) as EntityType[]).map((type) => {
                   const conf = ENTITY_TYPES_CONFIG[type];
+                  const example = graphFixture.nodes.find((node) => node.type === type);
                   return (
                     <div
                       key={type}
                       className="p-3 rounded-md border border-border/70 bg-card space-y-2"
                     >
                       <div className="flex items-center justify-between">
-                        <EntityBadge type={type} name={conf.label} size="default" />
-                        <span className="font-mono text-[10px] text-muted-foreground uppercase">
-                          {type}
-                        </span>
+                        <EntityBadge type={type} size="default" />
+                        <span className="font-mono text-[10px] text-muted-foreground">{type}</span>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">
                         {conf.description}
                       </p>
-                      <div className="pt-1 flex items-center gap-1.5">
-                        <EntityBadge
-                          type={type}
-                          name={
-                            type === "person"
-                              ? "Dr. Elena Vance"
-                              : type === "team"
-                              ? "Infra Architecture"
-                              : type === "project"
-                              ? "Apollo Engine"
-                              : type === "decision"
-                              ? "ADR-104 Graph Store"
-                              : "Graph_RFC_v2.md"
-                          }
-                          subtitle={type === "person" ? "Lead" : undefined}
-                          size="sm"
-                          clickable
-                        />
-                      </div>
+                      {example && (
+                        <div className="pt-1">
+                          <EntityBadge type={type} label={example.label} size="sm" clickable />
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -459,24 +346,43 @@ export default function DesignSystemPage() {
               </p>
             </div>
             <GraphControls
-              zoom={graphZoom}
-              onZoomChange={setGraphZoom}
-              onResetZoom={() => setGraphZoom(1)}
-              filterType={graphFilter}
-              onFilterChange={setGraphFilter}
-              searchQuery={graphSearch}
+              search={graphSearch}
               onSearchChange={setGraphSearch}
-              nodeCount={MOCK_GRAPH_DATA.nodes.length}
-              edgeCount={MOCK_GRAPH_DATA.edges.length}
+              layout={graphLayout}
+              onLayoutChange={setGraphLayout}
+              depth={1}
+              onDepthChange={() => undefined}
+              entityTypes={[...new Set(graphFixture.nodes.map((node) => node.type))].map((type) => ({
+                type,
+                label: ENTITY_TYPES_CONFIG[type as EntityType]?.label ?? type,
+                colorKey: type,
+              }))}
+              selectedEntityTypes={graphEntityTypes}
+              onEntityTypesChange={setGraphEntityTypes}
+              edgeTypes={[...new Set(graphFixture.edges.map((edge) => edge.type))].map((type) => ({
+                type,
+                label: type,
+              }))}
+              selectedEdgeTypes={graphEdgeTypes}
+              onEdgeTypesChange={setGraphEdgeTypes}
+              showHistorical={showHistorical}
+              onShowHistoricalChange={setShowHistorical}
+              nodeCount={graphFixture.nodes.length}
+              edgeCount={graphFixture.edges.length}
+              truncated={graphFixture.truncated}
+              onZoomIn={() => graphCanvasRef.current?.zoomIn()}
+              onZoomOut={() => graphCanvasRef.current?.zoomOut()}
+              onFit={() => graphCanvasRef.current?.fit()}
+              onExport={() => toast.info("Export produces a PNG of the current view.")}
             />
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               <div className={selectedGraphNode ? "lg:col-span-3" : "lg:col-span-4"}>
                 <GraphCanvas
-                  data={MOCK_GRAPH_DATA}
-                  selectedNodeId={selectedGraphNode?.id || null}
+                  ref={graphCanvasRef}
+                  subgraph={graphFixture}
+                  layout={graphLayout}
+                  selectedNodeId={selectedGraphNode?.id ?? null}
                   onSelectNode={setSelectedGraphNode}
-                  zoom={graphZoom}
-                  filterType={graphFilter}
                   className="h-[460px]"
                 />
               </div>
@@ -484,17 +390,18 @@ export default function DesignSystemPage() {
                 <div className="lg:col-span-1 h-[460px]">
                   <NodeInspector
                     node={selectedGraphNode}
-                    edges={MOCK_GRAPH_DATA.edges}
-                    allNodes={MOCK_GRAPH_DATA.nodes}
                     onClose={() => setSelectedGraphNode(null)}
-                    onNavigateToNode={(nodeId) => {
-                      const found = MOCK_GRAPH_DATA.nodes.find((n) => n.id === nodeId);
-                      if (found) setSelectedGraphNode(found);
-                    }}
                   />
                 </div>
               )}
             </div>
+            <GraphLegend
+              entityTypes={[...new Set(graphFixture.nodes.map((node) => node.type))].map((type) => ({
+                type,
+                label: ENTITY_TYPES_CONFIG[type as EntityType]?.label ?? type,
+                colorKey: type,
+              }))}
+            />
           </div>
         </TabsContent>
 
@@ -622,7 +529,7 @@ export default function DesignSystemPage() {
               <Button size="sm">Small Size</Button>
               <Button size="default">Default Size</Button>
               <Button size="lg">Large Size</Button>
-              <Button isLoading loadingText="Querying FalkorDB...">
+              <Button isLoading loadingText="Loading…">
                 Submit
               </Button>
               <Button disabled>Disabled Button</Button>
@@ -727,9 +634,9 @@ export default function DesignSystemPage() {
                   <SelectContent>
                     <SelectGroup>
                       <SelectLabel>Supported Graph Backends</SelectLabel>
-                      <SelectItem value="falkordb">FalkorDB v0.4.2 (Active)</SelectItem>
+                      <SelectItem value="graph">Knowledge graph</SelectItem>
                       <SelectItem value="redis-graph">RedisGraph Module</SelectItem>
-                      <SelectItem value="custom-cypher">OpenCypher Protocol Endpoint</SelectItem>
+                      <SelectItem value="documents">Documents only</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
@@ -742,7 +649,7 @@ export default function DesignSystemPage() {
                 label="Executive Synthesis Summary"
                 description="AI-generated description with human verification notes."
                 placeholder="Write background rationale..."
-                defaultValue="FalkorDB was benchmarked across 50,000 entities and selected due to sub-12ms latency on 6-hop queries."
+                defaultValue="The payments launch slipped because the gateway integration is still blocked."
                 rows={3}
               />
             </div>
@@ -759,7 +666,7 @@ export default function DesignSystemPage() {
                 />
                 <div className="space-y-0.5">
                   <Label htmlFor="demo-checkbox" className="cursor-pointer">
-                    Enable FalkorDB Multi-hop Deduplication
+                    Include historical relationships
                   </Label>
                   <p className="text-xs text-muted-foreground">
                     Automatically merges identical entities across disparate document ingestion sources.
@@ -808,17 +715,17 @@ export default function DesignSystemPage() {
                   <DialogHeader>
                     <DialogTitle>Verify Knowledge Claim</DialogTitle>
                     <DialogDescription>
-                      You are about to promote this AI hypothesis to a Confirmed Fact in FalkorDB.
+                      This records your confirmation against the claim. It cannot be undone.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="py-2 space-y-2 text-xs">
                     <div className="p-3 rounded-md bg-muted/50 border space-y-1">
                       <span className="font-semibold text-foreground">Target Claim:</span>
                       <p className="text-muted-foreground">
-                        &ldquo;FalkorDB benchmarked at 14x faster traversal latency than SQL.&rdquo;
+                        &ldquo;The gateway integration is blocking the payments launch.&rdquo;
                       </p>
                     </div>
-                    <EvidenceBadge state="confirmed" size="sm" />
+                    <EvidenceBadge kind="confirmed" size="sm" />
                   </div>
                   <DialogFooter>
                     <DialogClose asChild>
@@ -830,7 +737,7 @@ export default function DesignSystemPage() {
                       size="sm"
                       onClick={() => {
                         setDialogOpen(false);
-                        toast.success("Claim verified and recorded in FalkorDB.");
+                        toast.success("Claim confirmed.");
                       }}
                     >
                       Confirm Promotion
@@ -858,19 +765,13 @@ export default function DesignSystemPage() {
                     </div>
                     <div className="space-y-1">
                       <span className="font-semibold text-foreground">Primary Owner</span>
-                      <EntityBadge type="person" name="Dr. Elena Vance" size="sm" />
+                      <EntityBadge type="employee" label="Ada Lovelace" size="sm" />
                     </div>
                     <div className="space-y-1">
                       <span className="font-semibold text-foreground">Ingested Source</span>
-                      <CitationChip
-                        citation={{
-                          id: "c-sheet",
-                          code: "ADR-104",
-                          label: "Official Confluence ADR",
-                          documentTitle: "Architecture Decision Record 104",
-                          sourceType: "confluence",
-                        }}
-                      />
+                      {showcaseCitations[0] && (
+                        <CitationChip citation={showcaseCitations[0]} index={1} />
+                      )}
                     </div>
                   </div>
                 </SheetContent>
@@ -882,7 +783,7 @@ export default function DesignSystemPage() {
                   <Button variant="secondary">Open Popover</Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80 space-y-2 text-xs">
-                  <h4 className="font-semibold text-foreground">FalkorDB Node Metrics</h4>
+                  <h4 className="font-semibold text-foreground">Entity summary</h4>
                   <p className="text-muted-foreground leading-relaxed">
                     Graph density: 3.25 relationships per entity. Memory footprint: 1.4 GB.
                   </p>
@@ -902,7 +803,7 @@ export default function DesignSystemPage() {
                 <DropdownMenuContent align="start" className="w-48">
                   <DropdownMenuLabel>Quick Actions</DropdownMenuLabel>
                   <DropdownMenuItem className="text-xs cursor-pointer">
-                    Export Cypher Query
+                    Export
                   </DropdownMenuItem>
                   <DropdownMenuItem className="text-xs cursor-pointer">
                     Re-index Knowledge Node
@@ -954,7 +855,7 @@ export default function DesignSystemPage() {
                 Error State (`ErrorState`)
               </h3>
               <ErrorState
-                title="FalkorDB Connection Timeout"
+                title="Could not reach the service"
                 message="The knowledge graph daemon did not respond within the 5000ms threshold. Please check the network bridge."
                 code="ERR_FALKOR_TIMEOUT"
                 onRetry={() => toast.loading("Attempting graph reconnect...")}
@@ -971,7 +872,7 @@ export default function DesignSystemPage() {
               <div className="border rounded-md p-4 bg-card">
                 <LoadingState
                   message="Computing Multi-Hop Graph Embeddings..."
-                  subtext="Traversing 14,820 FalkorDB nodes"
+                  subtext="This can take a moment"
                   variant="spinner"
                 />
               </div>
@@ -990,7 +891,7 @@ export default function DesignSystemPage() {
             <AccessDeniedState
               title="Restricted Architecture RFC Subgraph"
               requiredRole="Knowledge Steward"
-              description="You do not have the required permissions to view internal compliance and cryptographic key material in this FalkorDB graph domain."
+              description="Ask an administrator if you need access to this source."
               onGoBack={() => toast.info("Navigating back...")}
               onRequestAccess={() => toast.success("Access request sent to workspace administrator.")}
             />
@@ -1070,7 +971,7 @@ export default function DesignSystemPage() {
                   <TableHead className="w-24">Entity ID</TableHead>
                   <TableHead>Entity Label</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>FalkorDB Node Count</TableHead>
+                  <TableHead>Entities</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1084,7 +985,7 @@ export default function DesignSystemPage() {
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-mono">ENT-002</TableCell>
-                  <TableCell className="font-medium">FalkorDB Cluster Spec</TableCell>
+                  <TableCell className="font-medium">Graph storage</TableCell>
                   <TableCell><EntityBadge type="document" size="sm" /></TableCell>
                   <TableCell className="font-mono">890 nodes</TableCell>
                   <TableCell className="text-right"><Button variant="ghost" size="sm" className="h-6 text-xs">Inspect</Button></TableCell>
@@ -1097,9 +998,9 @@ export default function DesignSystemPage() {
 
       {/* Global Source Preview Drawer */}
       <SourcePreview
-        source={previewDoc}
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
+        citation={previewCitation}
+        open={Boolean(previewCitation)}
+        onOpenChange={(open) => !open && setPreviewCitation(null)}
       />
     </div>
   );

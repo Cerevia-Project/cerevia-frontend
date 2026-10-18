@@ -2,102 +2,122 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, User, Network } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { ArrowLeft, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { MOCK_PEOPLE } from "./PeopleView";
-import { MOCK_DECISIONS } from "@/mocks/decisions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { QueryBoundary } from "@/components/feedback";
+import { EntityBadge } from "@/components/entities/EntityBadge";
+import { CitationChip } from "@/components/evidence/CitationChip";
+import { usePerson } from "@/features/people/api";
+import { entityHref, graphHref } from "@/lib/entity-routes";
 
+/**
+ * A person's profile.
+ *
+ * Only fields the API returned are rendered: an omitted field is left out
+ * rather than shown as a blank, so the page never implies missing data.
+ */
 export function PersonDetailView({ personId }: { personId: string }) {
-  const person = MOCK_PEOPLE.find((p) => p.id === personId) || MOCK_PEOPLE[0];
-  const authoredDecisions = MOCK_DECISIONS.filter((d) => d.owner.toLowerCase().includes(person.name.toLowerCase().split(" ")[0]));
+  const query = usePerson(personId);
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      {/* Back button */}
-      <div>
-        <Button asChild variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground">
-          <Link href="/people">
-            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-            Back to People
-          </Link>
-        </Button>
-      </div>
+    <div className="max-w-4xl space-y-6">
+      <Button asChild variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground">
+        <Link href="/people">
+          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+          Back to people
+        </Link>
+      </Button>
 
-      {/* Person Profile Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-secondary text-primary border border-border">
-            <User className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              {person.name}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              {person.role} • {person.team}
-            </p>
-          </div>
-        </div>
+      <QueryBoundary query={query} errorTitle="Could not load this profile" notFoundTitle="Profile not found">
+        {(person) => (
+          <div className="space-y-6">
+            <header className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <h1 className="text-xl font-semibold tracking-tight text-foreground">{person.label}</h1>
+              <Button asChild variant="outline" size="sm" className="h-8 text-xs">
+                <Link href={graphHref({ entity: person.id })}>
+                  <Network className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                  Open in the graph
+                </Link>
+              </Button>
+            </header>
 
-        <Button asChild size="sm" className="h-8 text-xs">
-          <Link href="/graph">
-            <Network className="mr-1.5 h-3.5 w-3.5" />
-            View in Knowledge Graph
-          </Link>
-        </Button>
-      </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <Card>
+                <CardHeader className="border-b border-border p-4">
+                  <CardTitle className="text-sm font-semibold">Teams</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                  {person.memberships.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      No team membership is recorded.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {person.memberships.map((team) => (
+                        <Link key={team.id} href={entityHref(team.type, team.id)}>
+                          <EntityBadge type={team.type} label={team.label} size="sm" clickable />
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="p-3 text-xs space-y-0.5">
-          <span className="text-muted-foreground">Company Tenure</span>
-          <p className="font-semibold text-foreground">{person.tenure}</p>
-        </Card>
-        <Card className="p-3 text-xs space-y-0.5">
-          <span className="text-muted-foreground">Authored ADRs</span>
-          <p className="font-mono font-semibold text-foreground">{person.authoredDecisionsCount}</p>
-        </Card>
-        <Card className="p-3 text-xs space-y-0.5">
-          <span className="text-muted-foreground">Active Projects</span>
-          <p className="font-mono font-semibold text-foreground">{person.projectsCount}</p>
-        </Card>
-      </div>
-
-      {/* Authored Decisions */}
-      <Card>
-        <CardHeader className="p-4 border-b border-border">
-          <CardTitle className="text-sm font-semibold">
-            Authored Decisions &amp; Architectural Specifications
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 divide-y divide-border">
-          {(authoredDecisions.length > 0 ? authoredDecisions : MOCK_DECISIONS.slice(0, 2)).map((dec) => (
-            <div key={dec.id} className="py-2.5 first:pt-1 last:pb-1 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
-                    {dec.code}
-                  </span>
-                  <Link
-                    href={`/decisions/${dec.id}`}
-                    className="text-xs font-medium text-foreground hover:text-primary transition-colors"
-                  >
-                    {dec.title}
-                  </Link>
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {dec.summary}
-                </p>
-              </div>
-              <Badge variant="outline" className="text-[10px] font-mono shrink-0">
-                {dec.status}
-              </Badge>
+              <Card>
+                <CardHeader className="border-b border-border p-4">
+                  <CardTitle className="text-sm font-semibold">Responsibilities</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                  {person.responsibilities.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      No responsibility is recorded.
+                    </p>
+                  ) : (
+                    <ul className="list-disc space-y-1 pl-4 text-xs text-foreground">
+                      {person.responsibilities.map((responsibility, index) => (
+                        <li key={index}>{responsibility}</li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
             </div>
-          ))}
-        </CardContent>
-      </Card>
+
+            <Card>
+              <CardHeader className="border-b border-border p-4">
+                <CardTitle className="text-sm font-semibold">Expertise</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 p-4">
+                {person.expertise.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No evidenced expertise is recorded for this person.
+                  </p>
+                ) : (
+                  person.expertise.map((entry) => (
+                    <div
+                      key={entry.topic}
+                      className="space-y-1.5 rounded-md border border-border/60 bg-muted/30 p-3"
+                    >
+                      <p className="text-xs font-medium text-foreground">{entry.topic}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {entry.evidence.map((citation, index) => (
+                          <CitationChip
+                            key={citation.id}
+                            citation={citation}
+                            index={index + 1}
+                            size="sm"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </QueryBoundary>
     </div>
   );
 }

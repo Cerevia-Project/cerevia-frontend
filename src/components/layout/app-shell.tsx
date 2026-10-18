@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { SampleDataBanner } from "@/components/layout/sample-data-banner";
 
 export interface AppShellProps {
   children: React.ReactNode;
@@ -28,6 +29,7 @@ export function AppShell({ children }: AppShellProps) {
         <React.Suspense fallback={<div className="h-14 border-b border-border bg-card/80" />}>
           <Header />
         </React.Suspense>
+        <SampleDataBanner />
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
             <React.Suspense fallback={<div className="h-32 rounded-md bg-secondary animate-pulse" />}>

@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { QueryProvider } from "@/providers/query-provider";
+import { SessionProvider } from "@/providers/session-provider";
 
 export const metadata: Metadata = {
   title: "Cerevia | Enterprise AI Knowledge & Intelligence Workspace",
   description:
-    "AI-powered company knowledge and intelligence platform connecting documents, people, teams, projects, decisions, and relationships through FalkorDB.",
+    "Ask questions about your organization and get answers backed by the documents, people, projects and decisions they came from.",
 };
 
 export default function RootLayout({
@@ -23,7 +25,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <QueryProvider>
+            <SessionProvider>{children}</SessionProvider>
+          </QueryProvider>
           <Toaster position="bottom-right" />
         </ThemeProvider>
       </body>

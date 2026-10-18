@@ -2,140 +2,164 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { FolderKanban } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { EvidenceBadge } from "@/components/evidence/EvidenceBadge";
-import { ProjectRecord } from "@/types";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { EmptyState, QueryBoundary, SampleDataBadge } from "@/components/feedback";
+import { useProjects } from "@/features/projects/api";
+import { humanize } from "@/lib/formatters";
+import type { RiskLevel } from "@/api/types";
 
-export const MOCK_PROJECTS: ProjectRecord[] = [
-  {
-    id: "proj-synapse",
-    code: "PRJ-01",
-    name: "Project Synapse",
-    description: "Enterprise Knowledge Graph and FalkorDB integration layer with multi-hop sub-15ms queries.",
-    status: "active",
-    owner: "Elena Rostova",
-    team: "Core Platform",
-    progress: 82,
-    targetQuarter: "Q4 2026",
-    relatedDecisionsCount: 4,
-    documentsCount: 28,
-    evidenceState: "confirmed",
-  },
-  {
-    id: "proj-aurora",
-    code: "PRJ-02",
-    name: "Aurora Ingestion Gateway",
-    description: "Real-time connector infrastructure syncing Confluence, Slack, GitHub and Jira with PII redaction.",
-    status: "active",
-    owner: "Devon Vance",
-    team: "Infrastructure SRE",
-    progress: 68,
-    targetQuarter: "Q4 2026",
-    relatedDecisionsCount: 2,
-    documentsCount: 16,
-    evidenceState: "confirmed",
-  },
-  {
-    id: "proj-shield",
-    code: "PRJ-03",
-    name: "Shield Compliance & Redaction",
-    description: "Presidio-based PII scrubbing pipeline enforcing zero-retention audit standards.",
-    status: "completed",
-    owner: "Marcus Chen",
-    team: "Security & Compliance",
-    progress: 100,
-    targetQuarter: "Q3 2026",
-    relatedDecisionsCount: 3,
-    documentsCount: 12,
-    evidenceState: "confirmed",
-  },
-];
+const RISK_STYLES: Record<RiskLevel, string> = {
+  low: "text-success border-success/30 bg-success/5",
+  medium: "text-amber-900 dark:text-amber-300 border-amber-500/40 bg-amber-500/10",
+  high: "text-[var(--destructive)] border-[var(--destructive-border)] bg-[var(--destructive-subtle)]",
+};
 
 export function ProjectsView() {
+  const query = useProjects();
+  const [search, setSearch] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState("all");
+  const [riskFilter, setRiskFilter] = React.useState("all");
+
+  const items = React.useMemo(() => query.data?.items ?? [], [query.data]);
+
+  const statuses = React.useMemo(
+    () => [...new Set(items.map((project) => project.status))].sort(),
+    [items],
+  );
+
+  const filtered = items.filter((project) => {
+    const matchesSearch = project.label.toLowerCase().includes(search.trim().toLowerCase());
+    const matchesStatus = statusFilter === "all" || project.status === statusFilter;
+    const matchesRisk = riskFilter === "all" || project.riskLevel === riskFilter;
+    return matchesSearch && matchesStatus && matchesRisk;
+  });
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Projects &amp; Initiatives
-            </h1>
-            <Badge variant="outline" className="font-mono text-[10px]">
-              {MOCK_PROJECTS.length} Active
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Key organizational engineering and intelligence initiatives mapped in the knowledge graph.
-          </p>
-        </div>
+      <header className="border-b border-border pb-3">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Projects and risks</h1>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Status and risk level as the knowledge graph records them. Risk wording comes from the
+          API, not from this screen.
+        </p>
+      </header>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Filter projects…"
+          className="h-8 max-w-xs text-xs"
+          aria-label="Filter projects by name"
+        />
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-8 w-[150px] text-xs" aria-label="Filter by status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">
+              All statuses
+            </SelectItem>
+            {statuses.map((status) => (
+              <SelectItem key={status} value={status} className="text-xs">
+                {humanize(status)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={riskFilter} onValueChange={setRiskFilter}>
+          <SelectTrigger className="h-8 w-[150px] text-xs" aria-label="Filter by risk level">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">
+              All risk levels
+            </SelectItem>
+            {(["low", "medium", "high"] as RiskLevel[]).map((level) => (
+              <SelectItem key={level} value={level} className="text-xs">
+                {humanize(level)} risk
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Projects Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {MOCK_PROJECTS.map((proj) => (
-          <Card key={proj.id} className="flex flex-col justify-between hover:border-primary/40 transition-colors">
-            <CardHeader className="p-4 space-y-2 border-b border-border/60">
-              <div className="flex items-start justify-between gap-2">
-                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
-                  {proj.code}
-                </span>
-                <EvidenceBadge state={proj.evidenceState} size="sm" />
-              </div>
-              <CardTitle className="text-sm font-semibold">
-                <Link href={`/projects/${proj.id}`} className="hover:text-primary transition-colors">
-                  {proj.name}
-                </Link>
-              </CardTitle>
-              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                {proj.description}
-              </p>
-            </CardHeader>
-            <CardContent className="p-4 space-y-3">
-              {/* Progress bar */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-muted-foreground">Progress</span>
-                  <span className="font-mono font-medium text-foreground">{proj.progress}%</span>
-                </div>
-                <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${proj.progress}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Metadata */}
-              <div className="text-[11px] text-muted-foreground space-y-1 pt-1 border-t border-border">
-                <div className="flex items-center justify-between">
-                  <span>Owner:</span>
-                  <span className="font-medium text-foreground">{proj.owner}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Team:</span>
-                  <span className="text-foreground">{proj.team}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Decisions:</span>
-                  <span className="font-mono text-foreground">{proj.relatedDecisionsCount} ADRs</span>
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <Button asChild variant="outline" size="sm" className="w-full h-7 text-xs">
-                  <Link href={`/projects/${proj.id}`}>
-                    View Project <ArrowRight className="ml-1 h-3 w-3" />
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <QueryBoundary
+        query={query}
+        errorTitle="Could not load projects"
+        isEmpty={(page) => page.items.length === 0}
+        empty={
+          <EmptyState
+            icon={<FolderKanban className="h-4 w-4" />}
+            title="No projects"
+            description="Projects appear here once they are extracted from ingested documents."
+          />
+        }
+      >
+        {() =>
+          filtered.length === 0 ? (
+            <EmptyState
+              title="Nothing matches these filters"
+              description="Try clearing the status or risk filter."
+            />
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="text-[11px] hover:bg-transparent">
+                      <TableHead>Project</TableHead>
+                      <TableHead className="w-[160px]">Status</TableHead>
+                      <TableHead className="w-[140px]">Risk level</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="text-xs">
+                    {filtered.map((project) => (
+                      <TableRow key={project.id}>
+                        <TableCell className="font-medium text-foreground">
+                          <Link
+                            href={`/projects/${encodeURIComponent(project.id)}`}
+                            className="flex items-center gap-2 hover:text-primary"
+                          >
+                            {project.label}
+                            {project.isSampleData && <SampleDataBadge />}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {humanize(project.status)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={`text-[10px] ${RISK_STYLES[project.riskLevel]}`}>
+                            {humanize(project.riskLevel)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )
+        }
+      </QueryBoundary>
     </div>
   );
 }

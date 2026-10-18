@@ -1,14 +1,8 @@
 "use client";
 
 import * as React from "react";
-import {
-  User,
-  Settings,
-  Shield,
-  Key,
-  LogOut,
-  ChevronDown,
-} from "lucide-react";
+import Link from "next/link";
+import { Building2, ChevronDown, LogOut, Shield } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,82 +13,89 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { UserProfile } from "@/types";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSession } from "@/providers/session-provider";
 
-export interface UserMenuProps {
-  user?: UserProfile;
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
 }
 
-const DEFAULT_USER: UserProfile = {
-  id: "usr_01",
-  name: "Habib Adavize",
-  email: "habib@cerevia.internal",
-  role: "Lead Knowledge Steward",
-  team: "AI Architecture & Platform",
-  status: "online",
-};
+export function UserMenu() {
+  const { session, roles, can, logout } = useSession();
 
-export function UserMenu({ user = DEFAULT_USER }: UserMenuProps) {
+  if (!session) {
+    return <Skeleton className="h-7 w-7 rounded-full" />;
+  }
+
+  const { user, organization } = session;
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-2 p-1 pl-1.5 rounded-full hover:bg-accent transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer group"
-          aria-label="User navigation menu"
+          className="group flex cursor-pointer items-center gap-2 rounded-full p-1 pl-1.5 outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Account menu"
         >
-          <Avatar size="sm" status={user.status} className="h-7 w-7">
-            <AvatarFallback className="text-[11px] font-semibold bg-primary/10 text-primary">
-              HA
+          <Avatar size="sm" className="h-7 w-7">
+            <AvatarFallback className="bg-primary/10 text-[11px] font-semibold text-primary">
+              {initials(user.name)}
             </AvatarFallback>
           </Avatar>
-          <div className="hidden xl:flex flex-col text-left text-xs leading-none">
-            <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
+          <span className="hidden flex-col text-left text-xs leading-none xl:flex">
+            <span className="font-semibold text-foreground transition-colors group-hover:text-primary">
               {user.name}
             </span>
-            <span className="text-[10px] text-muted-foreground mt-0.5">
-              {user.role}
-            </span>
-          </div>
-          <ChevronDown className="h-3 w-3 text-muted-foreground hidden xl:block" />
+            <span className="mt-0.5 text-[10px] text-muted-foreground">{organization.name}</span>
+          </span>
+          <ChevronDown className="hidden h-3 w-3 text-muted-foreground xl:block" aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56 p-1.5">
-        <DropdownMenuLabel className="font-normal p-2">
+
+      <DropdownMenuContent align="end" className="w-64 p-1.5">
+        <DropdownMenuLabel className="p-2 font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-xs font-semibold text-foreground">{user.name}</p>
             <p className="text-[11px] text-muted-foreground">{user.email}</p>
-            <div className="flex items-center gap-1.5 pt-1">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-mono text-muted-foreground">
-                {user.role}
-              </span>
-            </div>
+            <p className="flex items-center gap-1.5 pt-1 font-mono text-[10px] text-muted-foreground">
+              <Building2 className="h-3 w-3" aria-hidden="true" />
+              {organization.name}
+            </p>
+            {roles.length > 0 && (
+              <p className="font-mono text-[10px] text-muted-foreground">
+                {roles.join(" · ")}
+              </p>
+            )}
           </div>
         </DropdownMenuLabel>
+
+        {can("admin:users") && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem asChild className="cursor-pointer text-xs">
+                <Link href="/admin/users">
+                  <Shield className="mr-2 h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                  <span>Administration</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </>
+        )}
+
         <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem className="text-xs cursor-pointer">
-            <User className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-            <span>Profile &amp; Activity</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem className="text-xs cursor-pointer">
-            <Settings className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-            <span>Workspace Settings</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem className="text-xs cursor-pointer">
-            <Shield className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-            <span>Access &amp; Permissions</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem className="text-xs cursor-pointer">
-            <Key className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-            <span>API &amp; FalkorDB Tokens</span>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem destructive className="text-xs cursor-pointer">
-          <LogOut className="mr-2 h-3.5 w-3.5" />
-          <span>Sign Out</span>
+        <DropdownMenuItem
+          destructive
+          className="cursor-pointer text-xs"
+          onSelect={() => void logout()}
+        >
+          <LogOut className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+          <span>Sign out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

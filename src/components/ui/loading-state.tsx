@@ -11,8 +11,8 @@ export interface LoadingStateProps
 }
 
 export function LoadingState({
-  message = "Retrieving knowledge graph records...",
-  subtext = "Querying FalkorDB multi-hop relational nodes",
+  message = "Loading…",
+  subtext,
   variant = "spinner",
   className,
   ...props

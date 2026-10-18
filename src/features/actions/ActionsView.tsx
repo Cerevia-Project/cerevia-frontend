@@ -2,145 +2,206 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CheckCircle, XCircle } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { EvidenceBadge } from "@/components/evidence/EvidenceBadge";
+import { CheckSquare, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { EmptyState, QueryBoundary, SampleDataBadge } from "@/components/feedback";
+import { usePermission } from "@/providers/session-provider";
+import { useCreateProposal, useProposals } from "@/features/actions/api";
+import { humanize, truncate } from "@/lib/formatters";
+import type { ProposalKind, ProposalStatus } from "@/api/types";
 
-export interface ActionItem {
-  id: string;
-  title: string;
-  description: string;
-  proposer: string;
-  team: string;
-  evidence: "hypothesis" | "confirmed" | "conflicting" | "inferred";
-  risk: "low" | "medium" | "high";
-  date: string;
-}
+export const PROPOSAL_STATUS_STYLES: Record<ProposalStatus, string> = {
+  draft: "text-muted-foreground",
+  pending_approval: "text-amber-900 dark:text-amber-300 border-amber-500/40 bg-amber-500/10",
+  approved: "text-success border-success/30 bg-success/5",
+  executing: "text-primary border-primary/30 bg-primary/5",
+  executed: "text-success border-success/30 bg-success/5",
+  failed: "text-[var(--destructive)] border-[var(--destructive-border)] bg-[var(--destructive-subtle)]",
+  rejected: "text-muted-foreground",
+};
 
-export const INITIAL_ACTIONS: ActionItem[] = [
-  {
-    id: "ACT-01",
-    title: "Promote Cytoscape WebGL Renderer Hypothesis to Confirmed Fact",
-    description: "Multi-tenant benchmark logs verified that WebGL reduces render latency by 64% on 10k nodes.",
-    proposer: "Habib Adavize",
-    team: "UI Platform",
-    evidence: "hypothesis",
-    risk: "low",
-    date: "2026-10-14",
-  },
-  {
-    id: "ACT-02",
-    title: "Approve FalkorDB Memory Allocation Increase to 64GB",
-    description: "Mitigates eviction spikes discovered in PR-412 under batch Jira re-indexing.",
-    proposer: "Devon Vance",
-    team: "Infrastructure SRE",
-    evidence: "confirmed",
-    risk: "medium",
-    date: "2026-10-15",
-  },
-  {
-    id: "ACT-03",
-    title: "Resolve Contradictory Claim in ADR-085 (Slack Ingestion PII)",
-    description: "Align Slack retention rules with the newly ratified SOC-2 Type II Presidio policy.",
-    proposer: "Marcus Chen",
-    team: "Security & Compliance",
-    evidence: "conflicting",
-    risk: "high",
-    date: "2026-10-16",
-  },
+const PROPOSAL_KINDS: ProposalKind[] = [
+  "status_report",
+  "meeting_summary",
+  "follow_up_tasks",
+  "handover_doc",
+  "support_reply",
+  "action_plan",
+  "launch_readiness_report",
 ];
 
 export function ActionsView() {
-  const [actions, setActions] = React.useState<ActionItem[]>(INITIAL_ACTIONS);
-
-  const handleResolve = (id: string, decision: "approve" | "reject") => {
-    setActions((prev) => prev.filter((a) => a.id !== id));
-    toast.success(
-      decision === "approve"
-        ? `Action ${id} approved and committed to FalkorDB.`
-        : `Action ${id} rejected.`
-    );
-  };
+  const query = useProposals();
+  const canCreate = usePermission("proposals:create");
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-3">
+    <div className="space-y-6">
+      <header className="flex flex-col gap-3 border-b border-border pb-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Actions &amp; Approvals
-            </h1>
-            <Badge variant="outline" className="font-mono text-[10px]">
-              {actions.length} Pending
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Review knowledge claims, schema promotions, and evidence consensus proposals awaiting sign-off.
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">
+            Actions and approvals
+          </h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Drafts generated from the knowledge base, reviewed and approved by a person before
+            anything leaves the system.
           </p>
         </div>
-      </div>
+        {canCreate && <CreateProposalDialog />}
+      </header>
 
-      {/* Action items list */}
-      {actions.length === 0 ? (
-        <Card className="p-8 text-center text-xs text-muted-foreground border-dashed">
-          All pending actions and evidence approvals have been resolved.
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {actions.map((act) => (
-            <Card key={act.id} className="p-4 space-y-3 hover:border-primary/40 transition-colors">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                <div className="space-y-1.5 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
-                      {act.id}
-                    </span>
-                    <Link
-                      href={`/actions/${act.id}`}
-                      className="text-sm font-semibold text-foreground hover:text-primary transition-colors"
-                    >
-                      {act.title}
-                    </Link>
-                    <EvidenceBadge state={act.evidence} size="sm" />
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {act.description}
-                  </p>
-                  <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-                    <span>Proposed by <strong>{act.proposer}</strong> ({act.team})</span>
-                    <span>•</span>
-                    <span className="font-mono">{act.date}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => handleResolve(act.id, "reject")}
-                  >
-                    <XCircle className="mr-1 h-3.5 w-3.5" />
-                    Reject
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-8 text-xs bg-success hover:bg-success/90 text-white"
-                    onClick={() => handleResolve(act.id, "approve")}
-                  >
-                    <CheckCircle className="mr-1 h-3.5 w-3.5" />
-                    Approve
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+      <QueryBoundary
+        query={query}
+        errorTitle="Could not load proposals"
+        isEmpty={(page) => page.items.length === 0}
+        empty={
+          <EmptyState
+            icon={<CheckSquare className="h-4 w-4" />}
+            title="No proposals"
+            description="Proposals appear here when the assistant suggests an action, or when you draft one."
+          />
+        }
+      >
+        {(page) => (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="text-[11px] hover:bg-transparent">
+                    <TableHead>Proposal</TableHead>
+                    <TableHead className="w-[180px]">Kind</TableHead>
+                    <TableHead className="w-[160px]">Status</TableHead>
+                    <TableHead className="w-[90px]" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="text-xs">
+                  {page.items.map((proposal) => (
+                    <TableRow key={proposal.id}>
+                      <TableCell className="text-foreground">
+                        <span className="flex items-center gap-2">
+                          <Link
+                            href={`/actions/${encodeURIComponent(proposal.id)}`}
+                            className="font-medium hover:text-primary"
+                          >
+                            {truncate(proposal.content || humanize(proposal.kind), 70)}
+                          </Link>
+                          {proposal.isSampleData && <SampleDataBadge />}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {humanize(proposal.kind)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] ${PROPOSAL_STATUS_STYLES[proposal.status] ?? ""}`}
+                        >
+                          {humanize(proposal.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
+                          <Link href={`/actions/${encodeURIComponent(proposal.id)}`}>Open</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+      </QueryBoundary>
     </div>
+  );
+}
+
+function CreateProposalDialog() {
+  const router = useRouter();
+  const [open, setOpen] = React.useState(false);
+  const [kind, setKind] = React.useState<ProposalKind>("status_report");
+  const create = useCreateProposal();
+
+  return (
+    <>
+      <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setOpen(true)}>
+        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+        New proposal
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Draft a proposal</DialogTitle>
+            <DialogDescription>
+              The draft is assembled from the knowledge base. Nothing is sent anywhere until it is
+              reviewed and approved.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Select value={kind} onValueChange={(value) => setKind(value as ProposalKind)}>
+              <SelectTrigger className="h-9 text-xs" aria-label="Proposal kind">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROPOSAL_KINDS.map((value) => (
+                  <SelectItem key={value} value={value} className="text-xs">
+                    {humanize(value)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={create.isPending}
+              onClick={() =>
+                create.mutate(
+                  { kind },
+                  {
+                    onSuccess: ({ proposalId }) => {
+                      toast.success("Draft proposal created.");
+                      setOpen(false);
+                      router.push(`/actions/${proposalId}`);
+                    },
+                  },
+                )
+              }
+            >
+              {create.isPending ? "Drafting…" : "Create draft"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
