@@ -2,6 +2,16 @@
 
 Enterprise AI knowledge and intelligence workspace: documents, people, teams, projects, decisions and the relationships between them, with an assistant that cites its evidence.
 
+**Demo video:** [walkthrough/cerevia-walkthrough.mp4](walkthrough/cerevia-walkthrough.mp4) shows the full flow running against the real backend: sign-in, the knowledge graph, a question answered from FalkorDB with its citation, an approval and the audit trail.
+
+**Built on FalkorDB.** The knowledge graph, document chunks, vector index and full-text index all live in FalkorDB, and every piece of evidence the assistant uses comes from a FalkorDB query.
+The graph model, the ingestion path and the query behind each agent tool are mapped in the backend README: [How the graph works](https://github.com/Cerevia-Project/Cerevia-backend#how-the-graph-works).
+
+| Repository | |
+| :--- | :--- |
+| Frontend (this repo) | Next.js workspace: assistant, graph explorer, projects, decisions, sources, approvals, admin |
+| [Cerevia-backend](https://github.com/Cerevia-Project/Cerevia-backend) | Express API, FalkorDB knowledge graph, hybrid retrieval, tool-calling agent |
+
 ---
 
 ## The one rule
