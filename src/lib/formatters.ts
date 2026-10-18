@@ -1,7 +1,4 @@
-/**
- * Display formatting. All dates and numbers go through `Intl`, so switching
- * locale later is a change in one place.
- */
+/** Display formatting, all through `Intl`. */
 
 const LOCALE = "en-US";
 
@@ -62,7 +59,6 @@ export function formatCompactNumber(value: number | null | undefined): string {
   }).format(value);
 }
 
-/** Confidence and progress arrive as 0–1 ratios. */
 export function formatPercent(ratio: number | null | undefined, digits = 0): string {
   if (typeof ratio !== "number" || Number.isNaN(ratio)) return "-";
   return new Intl.NumberFormat(LOCALE, {
@@ -83,7 +79,6 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
 
-/** `needs_review` → `Needs review`, for enum values with no label in the API. */
 export function humanize(value: string | null | undefined): string {
   if (!value) return "-";
   const spaced = value.replace(/[_-]+/g, " ").trim();
@@ -93,4 +88,9 @@ export function humanize(value: string | null | undefined): string {
 export function truncate(value: string, length: number): string {
   if (!value || value.length <= length) return value;
   return `${value.slice(0, length).trimEnd()}…`;
+}
+
+export function formatVersion(version: string | null | undefined): string {
+  if (!version) return "";
+  return /^\d+$/.test(version) ? `v${version}` : version;
 }

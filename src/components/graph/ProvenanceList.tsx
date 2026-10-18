@@ -3,12 +3,8 @@
 import * as React from "react";
 import { FileText } from "lucide-react";
 import type { Provenance } from "@/api/types";
-import { formatDate, formatPercent, humanize } from "@/lib/formatters";
+import { formatDate, formatPercent, humanize, formatVersion } from "@/lib/formatters";
 
-/**
- * Where a fact came from: document, version, passage, confidence and how it
- * was extracted. Passages are rendered as text and never linked.
- */
 export function ProvenanceList({ provenance }: { provenance: Provenance[] }) {
   if (provenance.length === 0) {
     return (
@@ -37,7 +33,7 @@ export function ProvenanceList({ provenance }: { provenance: Provenance[] }) {
               <span className="flex min-w-0 items-center gap-1.5">
                 <FileText className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
                 <span className="truncate font-mono text-[10px] text-foreground">
-                  {entry.documentId} v{entry.documentVersion}
+                  {entry.documentId} {formatVersion(entry.documentVersion)}
                 </span>
               </span>
               <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">

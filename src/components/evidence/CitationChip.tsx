@@ -5,7 +5,7 @@ import { FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Citation } from "@/api/types";
 import { SourcePreview } from "@/components/evidence/SourcePreview";
-import { humanize, truncate } from "@/lib/formatters";
+import { humanize, truncate, formatVersion } from "@/lib/formatters";
 import {
   Tooltip,
   TooltipContent,
@@ -16,9 +16,7 @@ import {
 export interface CitationChipProps
   extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick"> {
   citation: Citation;
-  /** 1-based marker shown in the chip, matching the answer's citation order. */
   index: number;
-  /** Takes over opening the preview (e.g. a shared evidence panel). */
   onOpenPreview?: (citation: Citation) => void;
   size?: "sm" | "default";
 }
@@ -63,7 +61,7 @@ export function CitationChip({
           <TooltipContent side="top" className="max-w-xs space-y-1 p-2 text-xs">
             <p className="font-semibold text-foreground">{citation.documentTitle}</p>
             <p className="font-mono text-[10px] text-muted-foreground">
-              v{citation.documentVersion}
+              {formatVersion(citation.documentVersion)}
               {location ? ` · ${location}` : ""} · {humanize(citation.sourceStatus)}
             </p>
             <p className="line-clamp-3 text-[11px] text-muted-foreground">

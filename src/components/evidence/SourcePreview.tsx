@@ -5,7 +5,7 @@ import { FileText, Hash, Layers, BadgeCheck, AlertCircle } from "lucide-react";
 import type { Citation } from "@/api/types";
 import { useDocumentContent } from "@/features/sources/api";
 import { errorMessage } from "@/api/errors";
-import { humanize } from "@/lib/formatters";
+import { humanize, formatVersion } from "@/lib/formatters";
 import {
   Sheet,
   SheetContent,
@@ -23,7 +23,6 @@ export interface SourcePreviewProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** Non-colour cue for approval state, alongside the badge colour. */
 const STATUS_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   approved: BadgeCheck,
   draft: FileText,
@@ -31,13 +30,7 @@ const STATUS_ICON: Record<string, React.ComponentType<{ className?: string }>> =
   unknown: AlertCircle,
 };
 
-/**
- * The passage behind a citation, with the surrounding document text when the
- * chunk can be fetched.
- *
- * Document text is untrusted: it is rendered as text, never as markup, and
- * nothing in it is turned into a link.
- */
+/** Document text is untrusted: rendered as text, never as markup, never linked. */
 export function SourcePreview({ citation, open, onOpenChange }: SourcePreviewProps) {
   const content = useDocumentContent(open && citation ? citation.documentId : null, citation?.chunkId);
 
@@ -65,7 +58,7 @@ export function SourcePreview({ citation, open, onOpenChange }: SourcePreviewPro
               {humanize(citation.sourceStatus)}
             </Badge>
             <span className="font-mono text-[10px] text-muted-foreground">
-              v{citation.documentVersion}
+              {formatVersion(citation.documentVersion)}
             </span>
           </div>
           <SheetTitle className="text-base font-semibold leading-tight text-foreground">
